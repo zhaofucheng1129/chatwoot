@@ -14,6 +14,10 @@
     "SEARCH_MESSAGES": "搜索对话中的消息",
     "VIEW_ORIGINAL": "查看原始内容",
     "VIEW_TRANSLATED": "查看翻译",
+    "TRANSLATION_TEXT": "译文",
+    "TRANSLATE_MESSAGE": "翻译",
+    "TRANSLATING": "翻译中…",
+    "TRANSLATION_FAILED": "翻译失败, 请重试",
     "EMPTY_STATE": {
       "CMD_BAR": "打开命令菜单",
       "KEYBOARD_SHORTCUTS": "查看键盘快捷键"
@@ -227,6 +231,8 @@
       "DISMISS_REPLY": "忽略回复",
       "REPLYING_TO": "回复：",
       "TIP_EMOJI_ICON": "显示表情选择器",
+      "TRANSLATE_DRAFT": "将回复翻译成客户的语言",
+      "RESTORE_TRANSLATION": "恢复您的原文",
       "TIP_ATTACH_ICON": "附加文件",
       "TIP_AUDIORECORDER_ICON": "录制音频",
       "TIP_AUDIORECORDER_PERMISSION": "允许访问音频",

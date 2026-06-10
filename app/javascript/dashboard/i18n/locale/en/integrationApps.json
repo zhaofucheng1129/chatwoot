@@ -12,6 +12,22 @@
     },
     "CONFIGURE": "Configure",
     "ADD_BUTTON": "Add a new hook",
+    "LLM_TRANSLATOR": {
+      "DRAG_HINT": "Drag providers to reorder. The provider on top is tried first; if it fails, the next one is used automatically.",
+      "PRIORITY_UPDATED": "Provider priority updated",
+      "PRIORITY_UPDATE_ERROR": "Could not update provider priority, please try again.",
+      "TEST_BUTTON": "Test",
+      "TESTING": "Testing…",
+      "CONNECTED": "Connected · {latency}ms",
+      "FAILED": "Unreachable"
+    },
+    "AI_ASSISTANT": {
+      "LIST_HINT": "The AI assistant replies automatically to new customer messages on the connected inboxes.",
+      "TEST_BUTTON": "Test",
+      "TESTING": "Testing…",
+      "CONNECTED": "Connected · {latency}ms",
+      "FAILED": "Unreachable"
+    },
     "DELETE": {
       "TITLE": {
         "INBOX": "Confirm deletion",

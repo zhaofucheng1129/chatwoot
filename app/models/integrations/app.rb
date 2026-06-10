@@ -30,6 +30,20 @@ class Integrations::App
     params[:fields]
   end
 
+  FORM_TRANSLATABLE_ATTRS = %w[label help placeholder].freeze
+
+  # 表单字段按当前语言翻译: 存在 integration_apps.<i18n_key>.form.<字段>.<属性> 键时覆盖, 否则回退 apps.yml 原文
+  def translated_form_schema
+    params[:settings_form_schema]&.map do |item|
+      translated = item.to_h
+      FORM_TRANSLATABLE_ATTRS.each do |attr|
+        value = I18n.t("integration_apps.#{params[:i18n_key]}.form.#{item[:name]}.#{attr}", default: nil)
+        translated[attr] = value if value.present?
+      end
+      translated
+    end
+  end
+
   # There is no way to get the account_id from the linear callback
   # so we are using the generate_linear_token method to generate a token and encode it in the state parameter
   def encode_state

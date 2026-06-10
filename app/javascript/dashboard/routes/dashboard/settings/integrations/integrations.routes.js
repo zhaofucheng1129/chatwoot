@@ -7,6 +7,8 @@ import Webhook from './Webhooks/Index.vue';
 import DashboardApps from './DashboardApps/Index.vue';
 import Slack from './Slack.vue';
 import Linear from './Linear.vue';
+import LlmTranslator from './LlmTranslator.vue';
+import AiAssistant from './AiAssistant.vue';
 import Notion from './Notion.vue';
 import Shopify from './Shopify.vue';
 
@@ -87,6 +89,24 @@ export default {
             permissions: ['administrator'],
           },
           props: route => ({ error: route.query.error }),
+        },
+        {
+          path: 'llm_translator',
+          name: 'settings_integrations_llm_translator',
+          component: LlmTranslator,
+          meta: {
+            featureFlag: FEATURE_FLAGS.INTEGRATIONS,
+            permissions: ['administrator'],
+          },
+        },
+        {
+          path: 'ai_assistant',
+          name: 'settings_integrations_ai_assistant',
+          component: AiAssistant,
+          meta: {
+            featureFlag: FEATURE_FLAGS.INTEGRATIONS,
+            permissions: ['administrator'],
+          },
         },
         {
           path: ':integration_id',

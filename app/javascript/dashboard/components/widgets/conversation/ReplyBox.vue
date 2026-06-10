@@ -20,7 +20,7 @@ import QuotedEmailPreview from './QuotedEmailPreview.vue';
 import { REPLY_EDITOR_MODES } from 'dashboard/components/widgets/WootWriter/constants';
 import WootMessageEditor from 'dashboard/components/widgets/WootWriter/Editor.vue';
 import AudioRecorder from 'dashboard/components/widgets/WootWriter/AudioRecorder.vue';
-import { AUDIO_FORMATS } from 'shared/constants/messages';
+import { AUDIO_FORMATS, MESSAGE_TYPE } from 'shared/constants/messages';
 import { BUS_EVENTS } from 'shared/constants/busEvents';
 import { CMD_AI_ASSIST } from 'dashboard/helper/commandbar/events';
 import {
@@ -134,6 +134,12 @@ export default {
       showArticleSearchPopover: false,
       hasRecordedAudio: false,
       copilotAcceptedMessages: {},
+      isTranslatingDraft: false,
+      // Original draft text saved before a translation, so it can be restored.
+      draftBeforeTranslation: null,
+      // Cache of the last translation { source, target, content } to avoid
+      // re-hitting the service when toggling translate/restore on the same text.
+      lastTranslation: null,
     };
   },
   computed: {
@@ -144,6 +150,41 @@ export default {
       lastEmail: 'getLastEmailInSelectedChat',
       globalConfig: 'globalConfig/get',
     }),
+    // Customer's language: the most recent incoming message that has a
+    // reliably detected language. Short/ambiguous acknowledgements like "ok"
+    // or emojis are not reliably detected (CLD3 gates on reliability), so they
+    // carry no detected_language and are skipped here, keeping the language of
+    // the customer's last substantive message. Falls back to the
+    // conversation-level detected language.
+    customerLanguage() {
+      const messages = this.currentChat?.messages || [];
+      const lastDetected = [...messages]
+        .reverse()
+        .find(
+          m =>
+            m.message_type === MESSAGE_TYPE.INCOMING &&
+            !m.private &&
+            m.content_attributes?.detected_language
+        );
+      return (
+        lastDetected?.content_attributes?.detected_language ||
+        this.currentChat?.additional_attributes?.conversation_language
+      );
+    },
+    showTranslateDraft() {
+      // Only for replies that reach the customer (not private notes), when we
+      // know the customer's language, and no translation is currently applied
+      // (so it can't overwrite the saved original on a second click).
+      return (
+        !this.isPrivate &&
+        !!this.customerLanguage &&
+        this.draftBeforeTranslation === null
+      );
+    },
+    showRestoreDraft() {
+      // While a translation is applied, offer to restore the original text.
+      return !this.isPrivate && this.draftBeforeTranslation !== null;
+    },
     currentContact() {
       const senderId = this.currentChat?.meta?.sender?.id;
       if (!senderId) return {};
@@ -538,6 +579,55 @@ export default {
     emitter.off(CMD_AI_ASSIST, this.executeCopilotAction);
   },
   methods: {
+    async onTranslateDraft() {
+      const original = this.message;
+      const content = original?.trim();
+      if (!content || this.isTranslatingDraft || !this.customerLanguage) return;
+
+      // Reuse the cached result when the same text was already translated,
+      // so toggling translate/restore doesn't re-call the service.
+      const cached = this.lastTranslation;
+      if (
+        cached &&
+        cached.source === content &&
+        cached.target === this.customerLanguage
+      ) {
+        this.draftBeforeTranslation = original;
+        this.message = cached.content;
+        return;
+      }
+
+      this.isTranslatingDraft = true;
+      try {
+        const data = await this.$store.dispatch('translateDraftText', {
+          conversationId: this.conversationId,
+          content,
+          targetLanguage: this.customerLanguage,
+        });
+        if (data?.content) {
+          // Keep the agent's original text so it can be restored if the
+          // translation is off, and cache the result.
+          this.lastTranslation = {
+            source: content,
+            target: this.customerLanguage,
+            content: data.content,
+          };
+          this.draftBeforeTranslation = original;
+          this.message = data.content;
+        } else {
+          useAlert(this.$t('CONVERSATION.TRANSLATION_FAILED'));
+        }
+      } catch (error) {
+        useAlert(this.$t('CONVERSATION.TRANSLATION_FAILED'));
+      } finally {
+        this.isTranslatingDraft = false;
+      }
+    },
+    onRestoreDraft() {
+      if (this.draftBeforeTranslation === null) return;
+      this.message = this.draftBeforeTranslation;
+      this.draftBeforeTranslation = null;
+    },
     getDraftKey(
       conversationId = this.conversationIdByRoute,
       replyType = this.replyType
@@ -946,6 +1036,8 @@ export default {
     },
     clearMessage() {
       this.message = '';
+      this.draftBeforeTranslation = null;
+      this.lastTranslation = null;
       this.clearCopilotAcceptedMessage();
       if (this.sendWithSignature && !this.isPrivate) {
         // if signature is enabled, append it to the message
@@ -1426,10 +1518,15 @@ export default {
         :message="message"
         :portal-slug="connectedPortalSlug"
         :new-conversation-modal-active="newConversationModalActive"
+        :show-translate="showTranslateDraft"
+        :is-translating="isTranslatingDraft"
+        :show-restore-translation="showRestoreDraft"
         @select-whatsapp-template="openWhatsappTemplateModal"
         @select-content-template="openContentTemplateModal"
         @toggle-insert-article="toggleInsertArticle"
         @toggle-quoted-reply="toggleQuotedReply"
+        @translate-draft="onTranslateDraft"
+        @restore-translation="onRestoreDraft"
       />
     </Transition>
 

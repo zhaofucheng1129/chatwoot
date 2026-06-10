@@ -23,6 +23,9 @@ const state = {
   syncConversationsMessages: {},
   conversationFilters: {},
   copilotAssistant: {},
+  // Map of messageId -> true while a translation request is in flight.
+  // Shared so the bubble button and the right-click menu stay in sync.
+  translatingMessageIds: {},
 };
 
 const getConversationById = _state => conversationId => {
@@ -31,6 +34,16 @@ const getConversationById = _state => conversationId => {
 
 // mutations
 export const mutations = {
+  [types.SET_MESSAGE_TRANSLATING](_state, messageId) {
+    _state.translatingMessageIds = {
+      ..._state.translatingMessageIds,
+      [messageId]: true,
+    };
+  },
+  [types.UNSET_MESSAGE_TRANSLATING](_state, messageId) {
+    const { [messageId]: _removed, ...rest } = _state.translatingMessageIds;
+    _state.translatingMessageIds = rest;
+  },
   [types.SET_ALL_CONVERSATION](_state, conversationList) {
     const newAllConversations = [..._state.allConversations];
     conversationList.forEach(conversation => {

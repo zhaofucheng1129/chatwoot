@@ -365,6 +365,14 @@ en:
       name: 'Google Translate'
       short_description: 'Automatically translate customer messages for agents.'
       description: "Integrate Google Translate to help agents easily translate customer messages. This integration automatically detects the language and converts it to the agent's or admin's preferred language."
+    llm_translator:
+      name: 'AI Translation'
+      short_description: 'Translate messages and replies using your own AI models.'
+      description: 'Connect one or more OpenAI-compatible AI models (Gemini, OpenAI, GLM, DeepSeek, etc.) to translate customer messages and agent replies. Add multiple providers and order them by priority; if one fails, the next is used automatically for better reliability.'
+    ai_assistant:
+      name: 'AI Assistant'
+      short_description: 'Let an AI model auto-reply to new conversations and hand off to a human when needed.'
+      description: 'Connect an OpenAI-compatible AI model to automatically answer new customer conversations. The assistant replies on its own while a conversation is pending and hands the conversation off to a human agent when it cannot help or the customer asks for one.'
     openai:
       name: 'OpenAI'
       short_description: 'AI-powered reply suggestions, summarization, and message enhancement.'

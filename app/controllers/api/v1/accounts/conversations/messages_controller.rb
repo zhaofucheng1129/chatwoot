@@ -39,10 +39,7 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
   def translate
     return head :ok if already_translated_content_available?
 
-    translated_content = Integrations::GoogleTranslate::ProcessorService.new(
-      message: message,
-      target_language: permitted_params[:target_language]
-    ).perform
+    translated_content = translate_with_llm || translate_with_google
 
     if translated_content.present?
       translations = {}
@@ -55,6 +52,21 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
   end
 
   private
+
+  def translate_with_llm
+    Llm::TranslationService.new(
+      content: message.content,
+      target_language: permitted_params[:target_language],
+      account: message.account
+    ).perform
+  end
+
+  def translate_with_google
+    Integrations::GoogleTranslate::ProcessorService.new(
+      message: message,
+      target_language: permitted_params[:target_language]
+    ).perform
+  end
 
   def message
     @message ||= @conversation.messages.find(permitted_params[:id])

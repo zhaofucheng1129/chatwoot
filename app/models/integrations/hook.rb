@@ -69,9 +69,14 @@ class Integrations::Hook < ApplicationRecord
     update(status: 'disabled')
   end
 
-  def process_event(_event)
+  # 支持 LLM 健康检查的集成,settings 均含 base_url/api_key/model
+  LLM_HEALTH_CHECK_APPS = %w[llm_translator ai_assistant].freeze
+
+  def process_event(event)
     # OpenAI integration migrated to Captain::EditorService
     # Other integrations (slack, dialogflow, etc.) handled via HookJob
+    return verify_llm_connection if llm_verify_event?(event)
+
     { error: 'No processor found' }
   end
 
@@ -85,6 +90,16 @@ class Integrations::Hook < ApplicationRecord
   end
 
   private
+
+  def llm_verify_event?(event)
+    LLM_HEALTH_CHECK_APPS.include?(app_id) && event&.dig('name') == 'verify_connection'
+  end
+
+  # Pings the provider with a minimal completion so the settings UI can show
+  # whether the provider is reachable. Result goes back as the event message.
+  def verify_llm_connection
+    { message: Llm::ProviderHealthCheckService.new(settings: settings || {}).perform }
+  end
 
   def ensure_feature_enabled
     errors.add(:feature_flag, 'Feature not enabled') unless feature_allowed?

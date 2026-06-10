@@ -161,6 +161,138 @@ dialogflow:
       },
     ]
   visible_properties: ['project_id', 'region', 'language_code']
+llm_translator:
+  id: llm_translator
+  logo: llm_translator.png
+  i18n_key: llm_translator
+  action: /llm_translator
+  hook_type: account
+  allow_multiple_hooks: true
+  settings_json_schema:
+    {
+      'type': 'object',
+      'properties':
+        {
+          'name': { 'type': 'string' },
+          'base_url': { 'type': 'string' },
+          'api_key': { 'type': 'string' },
+          'model': { 'type': 'string' },
+          'priority': { 'type': 'string' },
+        },
+      'required': ['name', 'base_url', 'api_key', 'model'],
+      'additionalProperties': false,
+    }
+  settings_form_schema:
+    [
+      {
+        'label': 'Display name',
+        'type': 'text',
+        'name': 'name',
+        'validation': 'required',
+        'validationName': 'Name',
+      },
+      {
+        'label': 'API Base URL (OpenAI-compatible)',
+        'type': 'text',
+        'name': 'base_url',
+        'placeholder': 'https://generativelanguage.googleapis.com/v1beta/openai',
+        'validation': 'required',
+        'validationName': 'Base URL',
+      },
+      {
+        'label': 'API Key',
+        'type': 'text',
+        'name': 'api_key',
+        'validation': 'required',
+        'validationName': 'API Key',
+      },
+      {
+        'label': 'Model',
+        'type': 'text',
+        'name': 'model',
+        'placeholder': 'gemini-2.5-flash',
+        'validation': 'required',
+        'validationName': 'Model',
+      },
+      {
+        'label': 'Priority (smaller is tried first)',
+        'type': 'text',
+        'name': 'priority',
+        'default': '1',
+        'help': 'Providers are tried in ascending priority; the next is used if one fails.',
+      },
+    ]
+  visible_properties: ['name', 'base_url', 'model', 'priority']
+ai_assistant:
+  id: ai_assistant
+  logo: ai_assistant.png
+  i18n_key: ai_assistant
+  action: /ai_assistant
+  hook_type: inbox
+  allow_multiple_hooks: false
+  settings_json_schema:
+    {
+      'type': 'object',
+      'properties':
+        {
+          'base_url': { 'type': 'string' },
+          'api_key': { 'type': 'string' },
+          'model': { 'type': 'string' },
+          'system_prompt': { 'type': 'string' },
+          'handoff_keywords': { 'type': 'string' },
+          'greeting_message': { 'type': 'string' },
+        },
+      'required': ['base_url', 'api_key', 'model', 'system_prompt'],
+      'additionalProperties': false,
+    }
+  settings_form_schema:
+    [
+      {
+        'label': 'API Base URL (OpenAI-compatible)',
+        'type': 'text',
+        'name': 'base_url',
+        'placeholder': 'https://generativelanguage.googleapis.com/v1beta/openai',
+        'validation': 'required',
+        'validationName': 'Base URL',
+      },
+      {
+        'label': 'API Key',
+        'type': 'text',
+        'name': 'api_key',
+        'validation': 'required',
+        'validationName': 'API Key',
+      },
+      {
+        'label': 'Model',
+        'type': 'text',
+        'name': 'model',
+        'placeholder': 'gemini-2.5-flash',
+        'validation': 'required',
+        'validationName': 'Model',
+      },
+      {
+        'label': 'System prompt',
+        'type': 'textarea',
+        'name': 'system_prompt',
+        'placeholder': 'You are a helpful customer support assistant for our company.',
+        'validation': 'required',
+        'validationName': 'System prompt',
+      },
+      {
+        'label': 'Handoff keywords (comma separated, optional)',
+        'type': 'text',
+        'name': 'handoff_keywords',
+        'placeholder': 'human, agent, representative',
+        'help': 'If a customer message contains any of these words, the conversation is handed off to a human.',
+      },
+      {
+        'label': 'Greeting message (optional)',
+        'type': 'text',
+        'name': 'greeting_message',
+        'help': 'Optional greeting shown to customers; currently the system prompt drives the first reply.',
+      },
+    ]
+  visible_properties: ['base_url', 'model']
 google_translate:
   id: google_translate
   logo: google-translate.png

@@ -14,6 +14,10 @@
     "SEARCH_MESSAGES": "在對話中搜尋訊息",
     "VIEW_ORIGINAL": "檢視原文",
     "VIEW_TRANSLATED": "檢視翻譯",
+    "TRANSLATION_TEXT": "譯文",
+    "TRANSLATE_MESSAGE": "翻譯",
+    "TRANSLATING": "翻譯中…",
+    "TRANSLATION_FAILED": "翻譯失敗, 請重試",
     "EMPTY_STATE": {
       "CMD_BAR": "開啟指令選單",
       "KEYBOARD_SHORTCUTS": "檢視鍵盤快捷鍵"
@@ -227,6 +231,8 @@
       "DISMISS_REPLY": "取消回覆",
       "REPLYING_TO": "正在回覆：",
       "TIP_EMOJI_ICON": "顯示表情符號選擇器",
+      "TRANSLATE_DRAFT": "將回覆翻譯成客戶的語言",
+      "RESTORE_TRANSLATION": "還原您的原文",
       "TIP_ATTACH_ICON": "附加檔案",
       "TIP_AUDIORECORDER_ICON": "錄製音訊",
       "TIP_AUDIORECORDER_PERMISSION": "允許存取音訊",

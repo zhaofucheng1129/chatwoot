@@ -22,13 +22,24 @@ export function selectTranslation(translations, agentLocale, accountLocale) {
 }
 
 /**
+ * Normalize a locale to its base language code (e.g. "zh_CN" -> "zh").
+ * @param {string} locale
+ * @returns {string}
+ */
+export function baseLanguage(locale) {
+  return (locale || '').toLowerCase().split(/[_-]/)[0];
+}
+
+/**
  * Composable to extract translation state/content from contentAttributes.
  * @param {Ref|Reactive} contentAttributes - Ref or reactive object containing `translations` property
- * @returns {Object} { hasTranslations, translationContent }
+ * @returns {Object} { hasTranslations, translationContent, detectedLanguage, accountLocale, needsTranslation }
  */
 export function useTranslations(contentAttributes) {
   const { uiSettings } = useUISettings();
   const { currentAccount } = useAccount();
+
+  const accountLocale = computed(() => currentAccount.value?.locale);
 
   const hasTranslations = computed(() => {
     if (!contentAttributes.value) return false;
@@ -41,9 +52,35 @@ export function useTranslations(contentAttributes) {
     return selectTranslation(
       contentAttributes.value.translations,
       uiSettings.value?.locale,
-      currentAccount.value?.locale
+      accountLocale.value
     );
   });
 
-  return { hasTranslations, translationContent };
+  const detectedLanguage = computed(
+    () => contentAttributes.value?.detectedLanguage || null
+  );
+
+  // Same target-language resolution as the right-click translate menu,
+  // so both entry points produce identical results.
+  const targetLocale = computed(
+    () => uiSettings.value?.locale || accountLocale.value || 'en'
+  );
+
+  // True when we know the message language and it differs from the account's
+  // primary language, i.e. the agent likely needs a translation.
+  const needsTranslation = computed(() => {
+    if (!detectedLanguage.value || !accountLocale.value) return false;
+    return (
+      baseLanguage(detectedLanguage.value) !== baseLanguage(accountLocale.value)
+    );
+  });
+
+  return {
+    hasTranslations,
+    translationContent,
+    detectedLanguage,
+    accountLocale,
+    targetLocale,
+    needsTranslation,
+  };
 }

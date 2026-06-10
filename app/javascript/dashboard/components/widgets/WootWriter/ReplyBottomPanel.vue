@@ -125,12 +125,26 @@ export default {
       type: Boolean,
       default: false,
     },
+    showTranslate: {
+      type: Boolean,
+      default: false,
+    },
+    isTranslating: {
+      type: Boolean,
+      default: false,
+    },
+    showRestoreTranslation: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: [
     'toggleInsertArticle',
     'selectWhatsappTemplate',
     'selectContentTemplate',
     'toggleQuotedReply',
+    'translateDraft',
+    'restoreTranslation',
   ],
   setup(props) {
     const { setSignatureFlagForInbox, fetchSignatureFlagFromUISettings } =
@@ -338,6 +352,25 @@ export default {
         faded
         sm
         @click="toggleMessageSignature"
+      />
+      <NextButton
+        v-if="showTranslate"
+        v-tooltip.top-end="$t('CONVERSATION.REPLYBOX.TRANSLATE_DRAFT')"
+        :icon="isTranslating ? 'i-ph-spinner-gap' : 'i-ph-translate'"
+        slate
+        faded
+        sm
+        :disabled="isTranslating"
+        @click="$emit('translateDraft')"
+      />
+      <NextButton
+        v-if="showRestoreTranslation"
+        v-tooltip.top-end="$t('CONVERSATION.REPLYBOX.RESTORE_TRANSLATION')"
+        icon="i-ph-arrow-counter-clockwise"
+        slate
+        faded
+        sm
+        @click="$emit('restoreTranslation')"
       />
       <NextButton
         v-if="showQuotedReplyToggle"

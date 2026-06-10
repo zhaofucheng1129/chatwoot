@@ -14,6 +14,10 @@
     "SEARCH_MESSAGES": "Search for messages in conversations",
     "VIEW_ORIGINAL": "View original",
     "VIEW_TRANSLATED": "View translated",
+    "TRANSLATION_TEXT": "Translation",
+    "TRANSLATE_MESSAGE": "Translate",
+    "TRANSLATING": "Translating…",
+    "TRANSLATION_FAILED": "Translation failed, please try again.",
     "EMPTY_STATE": {
       "CMD_BAR": "to open command menu",
       "KEYBOARD_SHORTCUTS": "to view keyboard shortcuts"
@@ -227,6 +231,8 @@
       "DISMISS_REPLY": "Dismiss reply",
       "REPLYING_TO": "Replying to:",
       "TIP_EMOJI_ICON": "Show emoji selector",
+      "TRANSLATE_DRAFT": "Translate reply into the customer's language",
+      "RESTORE_TRANSLATION": "Restore your original text",
       "TIP_ATTACH_ICON": "Attach files",
       "TIP_AUDIORECORDER_ICON": "Record audio",
       "TIP_AUDIORECORDER_PERMISSION": "Allow access to audio",

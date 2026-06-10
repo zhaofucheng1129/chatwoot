@@ -96,6 +96,13 @@ class ConversationApi extends ApiClient {
     return axios.post(`${this.url}/${conversationId}/unmute`);
   }
 
+  translateText({ conversationId, content, targetLanguage }) {
+    return axios.post(`${this.url}/${conversationId}/draft_translation`, {
+      content,
+      target_language: targetLanguage,
+    });
+  }
+
   meta({ inboxId, status, assigneeType, labels, teamId, conversationType }) {
     return axios.get(`${this.url}/meta`, {
       params: {

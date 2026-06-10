@@ -12,6 +12,22 @@
     },
     "CONFIGURE": "設定",
     "ADD_BUTTON": "新增掛鉤",
+    "LLM_TRANSLATOR": {
+      "DRAG_HINT": "拖曳供應商可調整順序. 排在最上面的供應商優先使用, 失敗時自動切換到下一個",
+      "PRIORITY_UPDATED": "供應商優先順序已更新",
+      "PRIORITY_UPDATE_ERROR": "無法更新供應商優先順序, 請重試",
+      "TEST_BUTTON": "測試",
+      "TESTING": "測試中…",
+      "CONNECTED": "連線正常 · {latency}ms",
+      "FAILED": "無法連線"
+    },
+    "AI_ASSISTANT": {
+      "LIST_HINT": "AI 客服助理會自動回覆所連接收件匣中的新客戶訊息",
+      "TEST_BUTTON": "測試",
+      "TESTING": "測試中…",
+      "CONNECTED": "連線正常 · {latency}ms",
+      "FAILED": "無法連線"
+    },
     "DELETE": {
       "TITLE": {
         "INBOX": "刪除確認",

@@ -12,6 +12,22 @@
     },
     "CONFIGURE": "配置",
     "ADD_BUTTON": "添加一个新钩子",
+    "LLM_TRANSLATOR": {
+      "DRAG_HINT": "拖拽供应商可调整顺序. 排在最上面的供应商优先使用, 失败时自动切换到下一个",
+      "PRIORITY_UPDATED": "供应商优先级已更新",
+      "PRIORITY_UPDATE_ERROR": "无法更新供应商优先级, 请重试",
+      "TEST_BUTTON": "测试",
+      "TESTING": "测试中…",
+      "CONNECTED": "连接正常 · {latency}ms",
+      "FAILED": "无法连接"
+    },
+    "AI_ASSISTANT": {
+      "LIST_HINT": "AI 客服助理会自动回复所连接收件箱中的新客户消息",
+      "TEST_BUTTON": "测试",
+      "TESTING": "测试中…",
+      "CONNECTED": "连接正常 · {latency}ms",
+      "FAILED": "无法连接"
+    },
     "DELETE": {
       "TITLE": {
         "INBOX": "确认删除",

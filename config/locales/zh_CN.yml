@@ -340,6 +340,43 @@ zh_CN:
     webhooks:
       name: 'Webhooks'
       description: 'Webhook 事件提供有关 Chatwoot 帐户中活动的实时更新。您可以订阅您喜欢的事件，Chatwoot 将向您发送带有更新的 HTTP 回调。'
+    llm_translator:
+      name: 'AI 翻译'
+      short_description: '使用您自己的 AI 模型翻译消息和回复'
+      description: '接入一个或多个 OpenAI 兼容的 AI 模型(Gemini, OpenAI, GLM, DeepSeek 等)翻译客户消息与客服回复. 可添加多个供应商并按优先级排序, 某个供应商失败时自动切换到下一个, 提升可靠性'
+      form:
+        name:
+          label: '显示名称'
+        base_url:
+          label: 'API Base URL (OpenAI 兼容)'
+        api_key:
+          label: 'API 密钥'
+        model:
+          label: '模型'
+        priority:
+          label: '优先级(数字越小越先尝试)'
+          help: '按优先级从小到大依次尝试供应商, 某个失败时自动使用下一个'
+    ai_assistant:
+      name: 'AI 客服助理'
+      short_description: '让 AI 自动回复新会话, 必要时移交人工客服'
+      description: '接入 OpenAI 兼容的 AI 模型自动回答新的客户会话. 会话处于待处理状态时由 AI 自动回复; 当 AI 无法解答或客户要求人工时, 自动将会话移交给人工客服'
+      form:
+        base_url:
+          label: 'API Base URL (OpenAI 兼容)'
+        api_key:
+          label: 'API 密钥'
+        model:
+          label: '模型'
+        system_prompt:
+          label: '系统提示词(人设)'
+          placeholder: '你是我们公司的客服助理, 请友好且简洁地回答客户的问题'
+        handoff_keywords:
+          label: '转人工关键词(逗号分隔, 可选)'
+          placeholder: '人工, 转人工, 真人客服'
+          help: '客户消息包含任一关键词时, 会话将自动移交给人工客服'
+        greeting_message:
+          label: '问候语(可选)'
+          help: '可选的客户问候语; 当前首条回复由系统提示词引导'
     dialogflow:
       name: 'Dialogflow'
       short_description: '构建聊天机器人来处理初步咨询，然后再转接给客服。'

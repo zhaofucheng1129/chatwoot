@@ -17,6 +17,18 @@ class MessageTemplates::HookExecutionService
     ::MessageTemplates::Template::OutOfOffice.new(conversation: conversation).perform if should_send_out_of_office_message?
     ::MessageTemplates::Template::Greeting.new(conversation: conversation).perform if should_send_greeting?
     ::MessageTemplates::Template::EmailCollect.new(conversation: conversation).perform if inbox.enable_email_collect && should_send_email_collect?
+    trigger_ai_assistant
+  end
+
+  # 仅对 pending 会话的客户(incoming)消息触发 AI 自动回复;outgoing(含 bot 自己的
+  # 回复)绝不触发以防循环.greeting_message 字段本期不单独消费,由 system_prompt 引导首条回复.
+  def trigger_ai_assistant
+    return unless conversation.pending? && message.incoming?
+
+    hook = inbox.hooks.find_by(app_id: 'ai_assistant', status: :enabled)
+    return if hook.blank?
+
+    Llm::AssistantResponseJob.perform_later(conversation, hook)
   end
 
   def should_send_out_of_office_message?
