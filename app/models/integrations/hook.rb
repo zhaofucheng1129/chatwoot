@@ -29,6 +29,8 @@ class Integrations::Hook < ApplicationRecord
   validates :inbox_id, presence: true, if: -> { hook_type == 'inbox' }
   validate :validate_settings_json_schema
   validate :ensure_feature_enabled
+  # 与原生外部机器人互斥: 同一收件箱两套机器人会互相抢消息
+  validate :ensure_no_active_agent_bot, if: -> { app_id == 'ai_assistant' && enabled? }
   validate :validate_openai_api_key, if: :validate_openai_api_key?
   validates :app_id, uniqueness: { scope: [:account_id], unless: -> { app.present? && app.params[:allow_multiple_hooks].present? } }
 
@@ -38,6 +40,8 @@ class Integrations::Hook < ApplicationRecord
 
   belongs_to :account
   belongs_to :inbox, optional: true
+  # ai_assistant 知识库文档;hook 删除时级联清理(仅 ai_assistant hook 实际有数据)
+  has_many :ai_assistant_documents, class_name: 'AiAssistant::Document', dependent: :destroy_async
   has_secure_token :access_token
 
   enum hook_type: { account: 0, inbox: 1 }
@@ -97,12 +101,25 @@ class Integrations::Hook < ApplicationRecord
 
   # Pings the provider with a minimal completion so the settings UI can show
   # whether the provider is reachable. Result goes back as the event message.
+  # ai_assistant 配了 embedding_model 时,额外 ping /embeddings 并附加 embedding 字段.
   def verify_llm_connection
-    { message: Llm::ProviderHealthCheckService.new(settings: settings || {}).perform }
+    result = Llm::ProviderHealthCheckService.new(settings: settings || {}).perform
+    result[:embedding] = Llm::EmbeddingHealthCheckService.new(hook: self).perform if verify_embedding?
+    { message: result }
+  end
+
+  def verify_embedding?
+    app_id == 'ai_assistant' && (settings || {})['embedding_model'].present?
   end
 
   def ensure_feature_enabled
     errors.add(:feature_flag, 'Feature not enabled') unless feature_allowed?
+  end
+
+  def ensure_no_active_agent_bot
+    return if inbox.blank? || !inbox.agent_bot_inbox&.active?
+
+    errors.add(:base, I18n.t('errors.ai_assistant.agent_bot_conflict'))
   end
 
   def ensure_hook_type

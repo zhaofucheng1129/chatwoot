@@ -18,6 +18,11 @@ export default {
       type: String,
       required: true,
     },
+    // 传入既有 hook 时进入编辑模式: 预填 settings 并改走更新接口
+    hook: {
+      type: Object,
+      default: null,
+    },
   },
   emits: ['close'],
   setup(props) {
@@ -29,10 +34,20 @@ export default {
     return { integration, isHookTypeInbox, replaceInstallationName };
   },
   data() {
+    const settings = this.hook?.settings || {};
+    // 编辑模式预填: JSON 类型字段(对象)需转回字符串供文本框展示
+    const values = Object.keys(settings).reduce((acc, key) => {
+      const value = settings[key];
+      acc[key] =
+        typeof value === 'object' && value !== null
+          ? JSON.stringify(value)
+          : value;
+      return acc;
+    }, {});
     return {
       endPoint: '',
       alertMessage: '',
-      values: {},
+      values,
     };
   },
   computed: {
@@ -63,7 +78,13 @@ export default {
     isIntegrationDialogflow() {
       return this.integration.id === 'dialogflow';
     },
+    isEditing() {
+      return !!this.hook;
+    },
     submitButtonLabel() {
+      if (this.isEditing) {
+        return this.$t('INTEGRATION_APPS.EDIT.FORM.SUBMIT');
+      }
       if (this.integration.id === 'openai' && this.uiFlags.isCreatingHook) {
         return this.$t('INTEGRATION_APPS.ADD.FORM.VALIDATING_OPENAI');
       }
@@ -104,11 +125,23 @@ export default {
     },
     async submitForm() {
       try {
-        await this.$store.dispatch(
-          'integrations/createHook',
-          this.buildHookPayload()
-        );
-        this.alertMessage = this.$t('INTEGRATION_APPS.ADD.API.SUCCESS_MESSAGE');
+        if (this.isEditing) {
+          await this.$store.dispatch('integrations/updateHook', {
+            hookId: this.hook.id,
+            settings: this.buildHookPayload().settings,
+          });
+          this.alertMessage = this.$t(
+            'INTEGRATION_APPS.EDIT.API.SUCCESS_MESSAGE'
+          );
+        } else {
+          await this.$store.dispatch(
+            'integrations/createHook',
+            this.buildHookPayload()
+          );
+          this.alertMessage = this.$t(
+            'INTEGRATION_APPS.ADD.API.SUCCESS_MESSAGE'
+          );
+        }
         this.onClose();
       } catch (error) {
         const errorMessage = error?.response?.data?.message;
@@ -141,7 +174,7 @@ export default {
     >
       <FormKit v-for="item in formItems" :key="item.name" v-bind="item" />
       <FormKit
-        v-if="isHookTypeInbox"
+        v-if="isHookTypeInbox && !isEditing"
         :options="inboxes"
         type="select"
         name="inbox"
@@ -162,7 +195,7 @@ export default {
         <NextButton
           type="submit"
           :label="submitButtonLabel"
-          :is-loading="uiFlags.isCreatingHook"
+          :is-loading="uiFlags.isCreatingHook || uiFlags.isUpdatingHook"
         />
       </div>
     </FormKit>

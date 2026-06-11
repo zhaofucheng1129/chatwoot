@@ -26,7 +26,52 @@
       "TEST_BUTTON": "測試",
       "TESTING": "測試中…",
       "CONNECTED": "連線正常 · {latency}ms",
-      "FAILED": "無法連線"
+      "FAILED": "無法連線",
+      "EMBEDDING_OK": "向量模型: 正常",
+      "EMBEDDING_FAILED": "向量模型: 失敗 - {error}",
+      "KNOWLEDGE_BASE": {
+        "TITLE": "知識庫",
+        "TOGGLE": "知識庫",
+        "HINT": "助理會檢索這些資料作為回覆依據",
+        "EMPTY": "尚無資料. 新增可供助理引用的參考資料",
+        "ADD_BUTTON": "新增資料",
+        "REFRESH_BUTTON": "重新整理",
+        "LOADING": "正在載入資料…",
+        "STATUS": {
+          "PROCESSING": "處理中",
+          "READY": "就緒",
+          "FAILED": "失敗"
+        },
+        "LIST_API": {
+          "ERROR_MESSAGE": "無法載入資料, 請重試"
+        },
+        "FORM": {
+          "TITLE": "新增資料",
+          "TITLE_LABEL": "標題",
+          "TITLE_PLACEHOLDER": "例如: 退款政策",
+          "CONTENT_LABEL": "內容",
+          "CONTENT_PLACEHOLDER": "在此貼上參考資料…",
+          "UPLOAD_HINT": "或上傳 txt/md 檔案",
+          "UPLOAD_ERROR": "無法讀取檔案, 請重試",
+          "SUBMIT": "新增",
+          "CANCEL": "取消",
+          "VALIDATION": "標題和內容均為必填",
+          "API": {
+            "SUCCESS_MESSAGE": "資料新增成功",
+            "ERROR_MESSAGE": "無法新增資料, 請重試"
+          }
+        },
+        "DELETE": {
+          "TITLE": "刪除確認",
+          "MESSAGE": "確定要刪除這筆資料嗎?",
+          "CONFIRM": "確認刪除",
+          "CANCEL": "取消",
+          "API": {
+            "SUCCESS_MESSAGE": "資料刪除成功",
+            "ERROR_MESSAGE": "無法刪除資料, 請重試"
+          }
+        }
+      }
     },
     "DELETE": {
       "TITLE": {
@@ -68,6 +113,14 @@
       "API": {
         "SUCCESS_MESSAGE": "整合掛鉤新增成功",
         "ERROR_MESSAGE": "無法連接伺服器，請稍後再試"
+      }
+    },
+    "EDIT": {
+      "FORM": {
+        "SUBMIT": "儲存"
+      },
+      "API": {
+        "SUCCESS_MESSAGE": "設定更新成功"
       }
     },
     "CONNECT": {

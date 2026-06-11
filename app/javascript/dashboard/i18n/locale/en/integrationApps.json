@@ -26,7 +26,52 @@
       "TEST_BUTTON": "Test",
       "TESTING": "Testing…",
       "CONNECTED": "Connected · {latency}ms",
-      "FAILED": "Unreachable"
+      "FAILED": "Unreachable",
+      "EMBEDDING_OK": "Vector model: OK",
+      "EMBEDDING_FAILED": "Vector model: Failed - {error}",
+      "KNOWLEDGE_BASE": {
+        "TITLE": "Knowledge base",
+        "TOGGLE": "Knowledge base",
+        "HINT": "The assistant retrieves these documents to ground its replies.",
+        "EMPTY": "No documents yet. Add reference material the assistant can cite.",
+        "ADD_BUTTON": "Add material",
+        "REFRESH_BUTTON": "Refresh",
+        "LOADING": "Loading documents…",
+        "STATUS": {
+          "PROCESSING": "Processing",
+          "READY": "Ready",
+          "FAILED": "Failed"
+        },
+        "LIST_API": {
+          "ERROR_MESSAGE": "Could not load documents, please try again."
+        },
+        "FORM": {
+          "TITLE": "Add material",
+          "TITLE_LABEL": "Title",
+          "TITLE_PLACEHOLDER": "e.g. Refund policy",
+          "CONTENT_LABEL": "Content",
+          "CONTENT_PLACEHOLDER": "Paste reference material here…",
+          "UPLOAD_HINT": "or upload a txt/md file",
+          "UPLOAD_ERROR": "Could not read the file, please try again.",
+          "SUBMIT": "Add",
+          "CANCEL": "Cancel",
+          "VALIDATION": "Title and content are required.",
+          "API": {
+            "SUCCESS_MESSAGE": "Material added successfully",
+            "ERROR_MESSAGE": "Could not add material, please try again."
+          }
+        },
+        "DELETE": {
+          "TITLE": "Confirm deletion",
+          "MESSAGE": "Are you sure you want to delete this document?",
+          "CONFIRM": "Yes, delete",
+          "CANCEL": "Cancel",
+          "API": {
+            "SUCCESS_MESSAGE": "Document deleted successfully",
+            "ERROR_MESSAGE": "Could not delete document, please try again."
+          }
+        }
+      }
     },
     "DELETE": {
       "TITLE": {
@@ -68,6 +113,14 @@
       "API": {
         "SUCCESS_MESSAGE": "Integration hook added successfully",
         "ERROR_MESSAGE": "Could not connect to Woot Server, Please try again later"
+      }
+    },
+    "EDIT": {
+      "FORM": {
+        "SUBMIT": "Update"
+      },
+      "API": {
+        "SUCCESS_MESSAGE": "Integration hook updated successfully"
       }
     },
     "CONNECT": {

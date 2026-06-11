@@ -22,7 +22,9 @@
       "DISCONNECTED_SUCCESS_MESSAGE": "機器人已成功解除連結。",
       "ERROR_MESSAGE": "無法更新機器人，請再試一次。",
       "DISCONNECTED_ERROR_MESSAGE": "無法解除機器人連結，請再試一次。",
-      "SELECT_PLACEHOLDER": "選擇機器人"
+      "SELECT_PLACEHOLDER": "選擇機器人",
+      "AI_ASSISTANT_NOTICE": "此收件匣目前由內建 AI 客服助理(含知識庫)接管, 在此連結機器人會與其衝突",
+      "AI_ASSISTANT_LINK": "管理 AI 客服助理"
     },
     "ADD": {
       "TITLE": "新增機器人",

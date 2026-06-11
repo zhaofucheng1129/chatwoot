@@ -26,7 +26,52 @@
       "TEST_BUTTON": "测试",
       "TESTING": "测试中…",
       "CONNECTED": "连接正常 · {latency}ms",
-      "FAILED": "无法连接"
+      "FAILED": "无法连接",
+      "EMBEDDING_OK": "向量模型: 正常",
+      "EMBEDDING_FAILED": "向量模型: 失败 - {error}",
+      "KNOWLEDGE_BASE": {
+        "TITLE": "知识库",
+        "TOGGLE": "知识库",
+        "HINT": "助理会检索这些资料作为回复依据",
+        "EMPTY": "暂无资料. 添加可供助理引用的参考资料",
+        "ADD_BUTTON": "添加资料",
+        "REFRESH_BUTTON": "刷新",
+        "LOADING": "正在加载资料…",
+        "STATUS": {
+          "PROCESSING": "处理中",
+          "READY": "就绪",
+          "FAILED": "失败"
+        },
+        "LIST_API": {
+          "ERROR_MESSAGE": "无法加载资料, 请重试"
+        },
+        "FORM": {
+          "TITLE": "添加资料",
+          "TITLE_LABEL": "标题",
+          "TITLE_PLACEHOLDER": "例如: 退款政策",
+          "CONTENT_LABEL": "内容",
+          "CONTENT_PLACEHOLDER": "在此粘贴参考资料…",
+          "UPLOAD_HINT": "或上传 txt/md 文件",
+          "UPLOAD_ERROR": "无法读取文件, 请重试",
+          "SUBMIT": "添加",
+          "CANCEL": "取消",
+          "VALIDATION": "标题和内容均为必填",
+          "API": {
+            "SUCCESS_MESSAGE": "资料添加成功",
+            "ERROR_MESSAGE": "无法添加资料, 请重试"
+          }
+        },
+        "DELETE": {
+          "TITLE": "确认删除",
+          "MESSAGE": "确定要删除这条资料吗?",
+          "CONFIRM": "确认删除",
+          "CANCEL": "取消",
+          "API": {
+            "SUCCESS_MESSAGE": "资料删除成功",
+            "ERROR_MESSAGE": "无法删除资料, 请重试"
+          }
+        }
+      }
     },
     "DELETE": {
       "TITLE": {
@@ -68,6 +113,14 @@
       "API": {
         "SUCCESS_MESSAGE": "成功添加集成钩子",
         "ERROR_MESSAGE": "无法连接服务器，请稍后再试"
+      }
+    },
+    "EDIT": {
+      "FORM": {
+        "SUBMIT": "保存"
+      },
+      "API": {
+        "SUCCESS_MESSAGE": "配置更新成功"
       }
     },
     "CONNECT": {

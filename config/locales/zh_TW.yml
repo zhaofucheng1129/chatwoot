@@ -34,6 +34,9 @@ zh_TW:
     saml_not_available: 此安裝尚未啟用 SAML 驗證。
     inbox_deletetion_response: 您的收件匣刪除請求將在一段時間後處理。
   errors:
+    ai_assistant:
+      agent_bot_conflict: '此收件匣已連結外部機器人, 請先在收件匣設定的"機器人"分頁解除連結, 再啟用 AI 客服助理'
+      hook_conflict: '此收件匣已由內建 AI 客服助理接管, 請先在 整合 - AI 客服助理 中停用對應設定, 再連結機器人'
     account:
       reporting_timezone:
         invalid: 不是有效的時區
@@ -370,6 +373,10 @@ zh_TW:
         system_prompt:
           label: '系統提示詞(人設)'
           placeholder: '你是我們公司的客服助理, 請友善且簡潔地回答客戶的問題'
+        bot_name:
+          label: '機器人顯示名稱(可選)'
+          placeholder: 'AI 智慧客服'
+          help: '客戶看到的 AI 回覆發送者名稱, 留空則顯示預設的"機器人"'
         handoff_keywords:
           label: '轉真人關鍵詞(逗號分隔, 可選)'
           placeholder: '人工, 轉人工, 真人客服'
@@ -377,6 +384,15 @@ zh_TW:
         greeting_message:
           label: '問候語(可選)'
           help: '可選的客戶問候語; 目前首則回覆由系統提示詞引導'
+        embedding_base_url:
+          label: '向量模型 API Base URL(可選)'
+          help: '向量模型(OpenAI 相容)的 Base URL; 留空則複用對話 API Base URL'
+        embedding_api_key:
+          label: '向量模型 API 金鑰(可選)'
+          help: '留空則複用對話 API 金鑰'
+        embedding_model:
+          label: '向量模型(可選)'
+          help: '填寫向量模型 ID 即啟用知識庫檢索(RAG); 留空則不啟用'
     dialogflow:
       name: 'Dialogflow'
       short_description: '建立聊天機器人，在轉接給客服之前處理初步查詢。'

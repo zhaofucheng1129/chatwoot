@@ -62,9 +62,33 @@ class Llm::AssistantChatService
   end
 
   def system_prompt
-    "#{settings['system_prompt']}\n\n" \
+    "#{settings['system_prompt']}#{knowledge_section}\n\n" \
+      'Always reply in the same language the customer used in their latest message. ' \
       "If you cannot answer the customer's question, or the customer explicitly asks for a human/live agent, " \
       "append the marker #{HANDOFF_TOKEN} at the very end of your reply."
+  end
+
+  # 命中知识库时拼接参考资料段落;未启用或无命中返回空串.
+  def knowledge_section
+    chunks = retrieved_chunks
+    return '' if chunks.blank?
+
+    references = chunks.each_with_index.map { |content, index| "【资料#{index + 1}】#{content}" }.join("\n")
+    "\n\n以下是公司知识库参考资料:\n#{references}\n" \
+      '请优先依据资料回答;资料中没有的信息不要编造,无法回答时按上述规则转人工.'
+  end
+
+  def retrieved_chunks
+    @retrieved_chunks ||= Llm::KnowledgeRetrievalService.new(hook: hook, query: last_customer_message).perform
+  rescue StandardError => e
+    # 检索失败降级:跳过 RAG 照常回答,不阻塞回复.
+    Rails.logger.error("[Llm::AssistantChatService] knowledge retrieval failed #{e.class}: #{e.message}")
+    []
+  end
+
+  # 客户最后一条消息文本,作为检索查询.
+  def last_customer_message
+    conversation.messages.where(message_type: :incoming, private: false).last&.content.to_s
   end
 
   # 取最近 HISTORY_LIMIT 条 incoming/outgoing 聊天消息(排除私有备注与活动消息).

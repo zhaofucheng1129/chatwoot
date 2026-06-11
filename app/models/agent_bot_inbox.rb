@@ -14,6 +14,8 @@
 class AgentBotInbox < ApplicationRecord
   validates :inbox_id, presence: true
   validates :agent_bot_id, presence: true
+  # 与内建 AI 客服助理互斥(对应校验见 Integrations::Hook)
+  validate :ensure_no_ai_assistant_hook, if: -> { active? && inbox.present? }
   before_validation :ensure_account_id
 
   belongs_to :inbox
@@ -25,5 +27,11 @@ class AgentBotInbox < ApplicationRecord
 
   def ensure_account_id
     self.account_id = inbox&.account_id
+  end
+
+  def ensure_no_ai_assistant_hook
+    return unless inbox.hooks.exists?(app_id: 'ai_assistant', status: :enabled)
+
+    errors.add(:base, I18n.t('errors.ai_assistant.hook_conflict'))
   end
 end

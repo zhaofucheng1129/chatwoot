@@ -37,6 +37,14 @@ export default {
         this.currentInboxId
       );
     },
+    // 收件箱已由内建 AI 客服助理(集成)接管时,提示用户并提供入口
+    aiAssistantHook() {
+      const integration =
+        this.$store.getters['integrations/getIntegration']('ai_assistant');
+      return (integration?.hooks || []).find(
+        hook => hook.status && hook.inbox?.id === Number(this.currentInboxId)
+      );
+    },
   },
   watch: {
     activeAgentBot() {
@@ -51,6 +59,7 @@ export default {
     fetchBotData() {
       this.$store.dispatch('agentBots/get');
       this.$store.dispatch('agentBots/fetchAgentBotInbox', this.currentInboxId);
+      this.$store.dispatch('integrations/get');
     },
     async updateActiveAgentBot() {
       try {
@@ -87,6 +96,20 @@ export default {
   <div class="mx-6 max-w-4xl">
     <LoadingState v-if="uiFlags.isFetching || uiFlags.isFetchingAgentBot" />
     <form v-else @submit.prevent="updateActiveAgentBot">
+      <div
+        v-if="aiAssistantHook"
+        class="flex flex-wrap items-center gap-1 p-3 mb-4 text-sm rounded-lg bg-n-blue-2 text-n-blue-11"
+      >
+        <span>
+          {{ $t('AGENT_BOTS.BOT_CONFIGURATION.AI_ASSISTANT_NOTICE') }}
+        </span>
+        <router-link
+          :to="{ name: 'settings_integrations_ai_assistant' }"
+          class="font-medium underline"
+        >
+          {{ $t('AGENT_BOTS.BOT_CONFIGURATION.AI_ASSISTANT_LINK') }}
+        </router-link>
+      </div>
       <SettingsFieldSection
         :label="$t('AGENT_BOTS.BOT_CONFIGURATION.TITLE')"
         :help-text="$t('AGENT_BOTS.BOT_CONFIGURATION.DESC')"

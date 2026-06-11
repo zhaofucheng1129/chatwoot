@@ -22,7 +22,9 @@
       "DISCONNECTED_SUCCESS_MESSAGE": "成功断开代理机器人。",
       "ERROR_MESSAGE": "无法更新代理机器人。请再试一次。",
       "DISCONNECTED_ERROR_MESSAGE": "无法断开客服机器人。请再试一次。",
-      "SELECT_PLACEHOLDER": "选择机器人"
+      "SELECT_PLACEHOLDER": "选择机器人",
+      "AI_ASSISTANT_NOTICE": "此收件箱当前由内建 AI 客服助理(含知识库)接管, 在此绑定机器人会与其冲突",
+      "AI_ASSISTANT_LINK": "管理 AI 客服助理"
     },
     "ADD": {
       "TITLE": "添加机器人",

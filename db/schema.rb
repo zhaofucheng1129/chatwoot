@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_06_04_000000) do
+ActiveRecord::Schema[7.1].define(version: 2026_06_11_000002) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -143,6 +143,30 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_04_000000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["account_id"], name: "index_agent_capacity_policies_on_account_id"
+  end
+
+  create_table "ai_assistant_document_chunks", force: :cascade do |t|
+    t.bigint "document_id", null: false
+    t.text "content", null: false
+    t.jsonb "embedding"
+    t.integer "position"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["document_id", "position"], name: "index_ai_assistant_document_chunks_on_document_id_and_position", unique: true
+    t.index ["document_id"], name: "index_ai_assistant_document_chunks_on_document_id"
+  end
+
+  create_table "ai_assistant_documents", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "hook_id", null: false
+    t.string "title", null: false
+    t.text "content", null: false
+    t.integer "status", default: 0, null: false
+    t.string "embedding_model"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_ai_assistant_documents_on_account_id"
+    t.index ["hook_id"], name: "index_ai_assistant_documents_on_hook_id"
   end
 
   create_table "applied_slas", force: :cascade do |t|

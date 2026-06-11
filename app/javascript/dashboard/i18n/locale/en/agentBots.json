@@ -22,7 +22,9 @@
       "DISCONNECTED_SUCCESS_MESSAGE": "Successfully disconnected the agent bot.",
       "ERROR_MESSAGE": "Could not update the agent bot. Please try again.",
       "DISCONNECTED_ERROR_MESSAGE": "Could not disconnect the agent bot. Please try again.",
-      "SELECT_PLACEHOLDER": "Select bot"
+      "SELECT_PLACEHOLDER": "Select bot",
+      "AI_ASSISTANT_NOTICE": "This inbox is handled by the built-in AI Assistant (with knowledge base). Connecting an agent bot here would conflict with it.",
+      "AI_ASSISTANT_LINK": "Manage AI Assistant"
     },
     "ADD": {
       "TITLE": "Add Bot",

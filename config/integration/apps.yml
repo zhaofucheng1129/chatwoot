@@ -239,8 +239,12 @@ ai_assistant:
           'api_key': { 'type': 'string' },
           'model': { 'type': 'string' },
           'system_prompt': { 'type': 'string' },
+          'bot_name': { 'type': 'string' },
           'handoff_keywords': { 'type': 'string' },
           'greeting_message': { 'type': 'string' },
+          'embedding_base_url': { 'type': 'string' },
+          'embedding_api_key': { 'type': 'string' },
+          'embedding_model': { 'type': 'string' },
         },
       'required': ['base_url', 'api_key', 'model', 'system_prompt'],
       'additionalProperties': false,
@@ -279,6 +283,13 @@ ai_assistant:
         'validationName': 'System prompt',
       },
       {
+        'label': 'Bot display name (optional)',
+        'type': 'text',
+        'name': 'bot_name',
+        'placeholder': 'AI Assistant',
+        'help': 'Shown to customers as the sender of AI replies. Leave blank for the default "Bot".',
+      },
+      {
         'label': 'Handoff keywords (comma separated, optional)',
         'type': 'text',
         'name': 'handoff_keywords',
@@ -290,6 +301,26 @@ ai_assistant:
         'type': 'text',
         'name': 'greeting_message',
         'help': 'Optional greeting shown to customers; currently the system prompt drives the first reply.',
+      },
+      {
+        'label': 'Embedding API Base URL (optional)',
+        'type': 'text',
+        'name': 'embedding_base_url',
+        'placeholder': 'https://ark.cn-beijing.volces.com/api/v3',
+        'help': 'OpenAI-compatible base URL for the embedding model. Leave blank to reuse the chat API Base URL.',
+      },
+      {
+        'label': 'Embedding API Key (optional)',
+        'type': 'text',
+        'name': 'embedding_api_key',
+        'help': 'Leave blank to reuse the chat API Key.',
+      },
+      {
+        'label': 'Embedding model (optional)',
+        'type': 'text',
+        'name': 'embedding_model',
+        'placeholder': 'doubao-embedding',
+        'help': 'Embedding model ID enables knowledge base retrieval (RAG). Leave blank to disable it.',
       },
     ]
   visible_properties: ['base_url', 'model']
