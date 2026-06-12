@@ -229,7 +229,7 @@ ai_assistant:
   i18n_key: ai_assistant
   action: /ai_assistant
   hook_type: inbox
-  allow_multiple_hooks: false
+  allow_multiple_hooks: true
   settings_json_schema:
     {
       'type': 'object',

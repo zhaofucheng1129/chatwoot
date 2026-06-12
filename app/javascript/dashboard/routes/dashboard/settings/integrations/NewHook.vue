@@ -58,25 +58,24 @@ export default {
     inboxes() {
       return this.dialogFlowEnabledInboxes
         .filter(inbox => {
-          if (!this.isIntegrationDialogflow) {
+          if (!this.isHookTypeInbox) {
             return true;
           }
-          return !this.connectedDialogflowInboxIds.includes(inbox.id);
+          return !this.connectedInboxIds.includes(inbox.id);
         })
         .map(inbox => ({ label: inbox.name, value: inbox.id }));
     },
 
-    connectedDialogflowInboxIds() {
-      if (!this.isIntegrationDialogflow) {
+    // 按收件箱绑定的集成(dialogflow/ai_assistant): 同一收件箱只允许一条配置,
+    // 已绑定的从下拉中排除
+    connectedInboxIds() {
+      if (!this.isHookTypeInbox) {
         return [];
       }
       return this.integration.hooks.map(hook => hook.inbox?.id);
     },
     formItems() {
       return this.integration.settings_form_schema;
-    },
-    isIntegrationDialogflow() {
-      return this.integration.id === 'dialogflow';
     },
     isEditing() {
       return !!this.hook;
