@@ -13,7 +13,9 @@ class Llm::AssistantResponseJob < ApplicationJob
     @conversation = conversation
     @hook = hook
 
-    return unless conversation.pending?
+    # 仅当会话没有分配人工客服时由 AI 接管(不论 open/pending);已分配人工则交给人工.
+    return if conversation.assignee_id.present?
+    return if conversation.resolved?
 
     # 客户在 AI 生成回复期间看到"正在输入"状态(外部 bot 经 API 回帖不会自动
     # 发 typing, 这里以机器人身份显式广播). ensure 确保任何路径都会关闭.
@@ -63,10 +65,45 @@ class Llm::AssistantResponseJob < ApplicationJob
   end
 
   def handoff(content = nil)
-    return unless @conversation.pending?
+    # Skip if a human is already on the conversation (avoid a duplicate
+    # transition message); otherwise post the transition line and hand off.
+    return if @conversation.assignee_id.present?
 
     create_message(content.presence || translated_handoff_message)
     @conversation.bot_handoff!
+    assign_human_agent
+  end
+
+  # Assign a human on handoff so the conversation actually reaches an agent
+  # (bot_handoff! alone only opens + emits an event). Prefer an online agent via
+  # the inbox round-robin rules; fall back to any inbox member so the handoff
+  # still lands on someone and the assistant stops replying (the assistant only
+  # answers unassigned conversations).
+  def assign_human_agent
+    return if @conversation.assignee_id.present?
+
+    candidate_ids = routable_agent_ids
+    return if candidate_ids.empty?
+
+    AutoAssignment::AgentAssignmentService.new(
+      conversation: @conversation, allowed_agent_ids: candidate_ids
+    ).perform
+    return if @conversation.reload.assignee_id.present?
+
+    @conversation.update(assignee_id: candidate_ids.first)
+  rescue StandardError => e
+    Rails.logger.warn("[Llm::AssistantResponseJob] agent assignment failed: #{e.message}")
+  end
+
+  # Candidate agents for a handoff: the conversation's team members when a team
+  # has been routed to it (the account's automation rules assign the team from
+  # the order/product attributes such as order_title); otherwise all inbox
+  # members. Round-robin then picks among these.
+  def routable_agent_ids
+    team_member_ids = @conversation.team&.members&.pluck(:id)
+    return team_member_ids if team_member_ids.present?
+
+    @conversation.inbox.inbox_members.pluck(:user_id)
   end
 
   # 关键词/异常路径的过渡话术:按客户消息的检测语言翻译(走 AI 翻译的独立供应商,

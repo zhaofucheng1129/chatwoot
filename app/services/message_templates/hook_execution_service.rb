@@ -20,10 +20,12 @@ class MessageTemplates::HookExecutionService
     trigger_ai_assistant
   end
 
-  # 仅对 pending 会话的客户(incoming)消息触发 AI 自动回复;outgoing(含 bot 自己的
-  # 回复)绝不触发以防循环.greeting_message 字段本期不单独消费,由 system_prompt 引导首条回复.
+  # AI 自动回复:只要会话【没有分配人工客服】就由 AI 接管客户(incoming)消息,
+  # 不论 open/pending(被人工接待并解决后重开的会话也能继续由 AI 回复);一旦分配了
+  # 人工(assignee 有值)即停止,交给人工.outgoing(含 bot 自己的回复)绝不触发以防循环.
   def trigger_ai_assistant
-    return unless conversation.pending? && message.incoming?
+    return unless message.incoming? && conversation.assignee_id.blank?
+    return if conversation.resolved?
 
     hook = inbox.hooks.find_by(app_id: 'ai_assistant', status: :enabled)
     return if hook.blank?
