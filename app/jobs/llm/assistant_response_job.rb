@@ -15,15 +15,35 @@ class Llm::AssistantResponseJob < ApplicationJob
 
     return unless conversation.pending?
 
-    return handoff if handoff_keyword_hit?
+    # 客户在 AI 生成回复期间看到"正在输入"状态(外部 bot 经 API 回帖不会自动
+    # 发 typing, 这里以机器人身份显式广播). ensure 确保任何路径都会关闭.
+    trigger_typing(Events::Types::CONVERSATION_TYPING_ON)
+    begin
+      return handoff if handoff_keyword_hit?
 
-    respond_with_llm
-  rescue StandardError => e
-    Rails.logger.error("[Llm::AssistantResponseJob] failed for conversation #{conversation&.id}: #{e.class} #{e.message}")
-    handoff
+      respond_with_llm
+    rescue StandardError => e
+      Rails.logger.error("[Llm::AssistantResponseJob] failed for conversation #{conversation&.id}: #{e.class} #{e.message}")
+      handoff
+    ensure
+      trigger_typing(Events::Types::CONVERSATION_TYPING_OFF)
+    end
   end
 
   private
+
+  # 以机器人身份广播 typing 状态; 经 ActionCableListener 推到联系人.
+  # 需要 bot 身份(push_event_data), 未设 bot_name 时跳过.
+  def trigger_typing(event)
+    bot = bot_sender
+    return if bot.nil?
+
+    Rails.configuration.dispatcher.dispatch(
+      event, Time.zone.now, conversation: @conversation, user: bot, is_private: false
+    )
+  rescue StandardError => e
+    Rails.logger.warn("[Llm::AssistantResponseJob] typing dispatch failed: #{e.message}")
+  end
 
   def respond_with_llm
     result = Llm::AssistantChatService.new(conversation: @conversation, hook: @hook).perform

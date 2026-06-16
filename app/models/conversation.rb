@@ -119,6 +119,7 @@ class Conversation < ApplicationRecord
   before_create :ensure_waiting_since
 
   after_update_commit :execute_after_update_commit_callbacks
+  after_update_commit :release_human_agent_on_resolve
   after_create_commit :notify_conversation_creation
   after_create_commit :load_attributes_created_by_db_triggers
   before_destroy :set_unread_count_deletion_data
@@ -233,6 +234,27 @@ class Conversation < ApplicationRecord
 
     # rubocop:disable Rails/SkipsModelValidations
     update_column(:waiting_since, nil)
+    # rubocop:enable Rails/SkipsModelValidations
+  end
+
+  # On an AI-enabled inbox, resolving hands the conversation back to the bot:
+  # remember which human served (for history / re-routing context) then
+  # unassign, so a later reopen is handled by the AI assistant until a human is
+  # explicitly requested again (re-assignment then follows the server rules and
+  # may pick a different agent). Runs after the resolved event dispatch so
+  # reporting still sees the assignee; update_columns avoids re-entering the
+  # callback chain.
+  def release_human_agent_on_resolve
+    return unless saved_change_to_status? && resolved?
+    return unless inbox.active_bot?
+    return if assignee_id.blank?
+
+    merged = (additional_attributes || {}).merge(
+      'last_human_agent_id' => assignee_id,
+      'last_human_agent_name' => assignee&.name
+    )
+    # rubocop:disable Rails/SkipsModelValidations
+    update_columns(additional_attributes: merged, assignee_id: nil)
     # rubocop:enable Rails/SkipsModelValidations
   end
 
