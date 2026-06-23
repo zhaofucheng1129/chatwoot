@@ -17,12 +17,14 @@ class Llm::AssistantResponseJob < ApplicationJob
     return if conversation.assignee_id.present?
     return if conversation.resolved?
 
+    # 按钮显式请求或打字命中关键词时直接 handoff,且不广播 AI typing,避免点
+    # 「人工客服」后先闪一下"AI 助理思考中"再切到"正在为您接入人工客服".
+    return handoff if explicit_handoff_request? || handoff_keyword_hit?
+
     # 客户在 AI 生成回复期间看到"正在输入"状态(外部 bot 经 API 回帖不会自动
     # 发 typing, 这里以机器人身份显式广播). ensure 确保任何路径都会关闭.
     trigger_typing(Events::Types::CONVERSATION_TYPING_ON)
     begin
-      return handoff if handoff_keyword_hit?
-
       respond_with_llm
     rescue StandardError => e
       Rails.logger.error("[Llm::AssistantResponseJob] failed for conversation #{conversation&.id}: #{e.class} #{e.message}")
@@ -55,13 +57,27 @@ class Llm::AssistantResponseJob < ApplicationJob
     create_message(result[:content])
   end
 
-  # 最后一条 incoming 消息命中 handoff_keywords(逗号分隔,包含匹配)即转人工.
+  # 客户端「人工客服」按钮发来的显式请求:末条 incoming 的
+  # content_attributes.lt_request == 'live_agent'. 与输入框打字的关键词路径
+  # 区分,按钮精确触发,不依赖关键词模糊匹配(契约见 app 端 requestLiveAgent).
+  def explicit_handoff_request?
+    @conversation.messages.incoming.last&.content_attributes&.dig('lt_request') == 'live_agent'
+  end
+
+  # 输入框打字命中 handoff_keywords 即转人工. 收紧为整条消息(去空白/标点后)
+  # 精确等于某个关键词才算,避免"人工智能"等含子串的正常提问被误判转人工.
   def handoff_keyword_hit?
-    keywords = (@hook.settings['handoff_keywords']).to_s.split(',').map { |k| k.strip.downcase }.reject(&:blank?)
+    raw = @hook.settings['handoff_keywords'].to_s.split(',')
+    keywords = raw.map { |k| normalize_handoff_text(k) }.reject(&:blank?)
     return false if keywords.empty?
 
-    content = @conversation.messages.incoming.last&.content.to_s.downcase
-    keywords.any? { |keyword| content.include?(keyword) }
+    content = normalize_handoff_text(@conversation.messages.incoming.last&.content)
+    content.present? && keywords.include?(content)
+  end
+
+  # 归一化:小写 + 去掉所有空白与标点,便于精确比较(中英标点都处理).
+  def normalize_handoff_text(text)
+    text.to_s.downcase.gsub(/[[:space:][:punct:]]/, '')
   end
 
   def handoff(content = nil)
@@ -69,7 +85,13 @@ class Llm::AssistantResponseJob < ApplicationJob
     # transition message); otherwise post the transition line and hand off.
     return if @conversation.assignee_id.present?
 
-    create_message(content.presence || translated_handoff_message)
+    # 过渡消息打上「连接中」状态标记,客户端据此还原连接状态(含历史回放).
+    # 不做翻译:移动端按 content_attributes.lt_status 走自己的 l10n 渲染,不显示
+    # 这段文字;且翻译是外部调用,放在分配真人之前会拖慢整个转人工(见 B 优化).
+    create_message(
+      content.presence || HANDOFF_MESSAGE,
+      content_attributes: { 'lt_status' => 'agent_connecting' }
+    )
     @conversation.bot_handoff!
     assign_human_agent
   end
@@ -88,11 +110,23 @@ class Llm::AssistantResponseJob < ApplicationJob
     AutoAssignment::AgentAssignmentService.new(
       conversation: @conversation, allowed_agent_ids: candidate_ids
     ).perform
-    return if @conversation.reload.assignee_id.present?
+    # Round-robin 没分到人时兜底指派第一个候选,确保 handoff 真正落到人.
+    @conversation.update(assignee_id: candidate_ids.first) if @conversation.reload.assignee_id.blank?
 
-    @conversation.update(assignee_id: candidate_ids.first)
+    # 真人已接入:发一条带客服名的「已接入」状态标记消息(历史可还原).
+    announce_agent_connected if @conversation.reload.assignee_id.present?
   rescue StandardError => e
     Rails.logger.warn("[Llm::AssistantResponseJob] agent assignment failed: #{e.message}")
+  end
+
+  # 「已接入真人」状态标记消息.content 仅作坐席后台/兜底文案,客户端按 l10n 用
+  # content_attributes.lt_status 渲染状态,agent_name 用于显示客服名.
+  def announce_agent_connected
+    name = @conversation.assignee&.name
+    create_message(
+      name.present? ? "#{name} joined the conversation" : 'A support agent joined the conversation',
+      content_attributes: { 'lt_status' => 'agent_connected', 'agent_name' => name }
+    )
   end
 
   # Candidate agents for a handoff: the conversation's team members when a team
@@ -106,42 +140,13 @@ class Llm::AssistantResponseJob < ApplicationJob
     @conversation.inbox.inbox_members.pluck(:user_id)
   end
 
-  # 关键词/异常路径的过渡话术:按客户消息的检测语言翻译(走 AI 翻译的独立供应商,
-  # 与助理供应商互为备份),按语言缓存;翻译不可用时回退英文基底文案.
-  def translated_handoff_message
-    lang = detected_customer_language
-    return HANDOFF_MESSAGE if lang.blank? || lang.start_with?('en')
-
-    # skip_nil: 翻译失败不缓存,下次重试;成功结果按语言缓存 7 天
-    translated = Rails.cache.fetch("ai_assistant/handoff_message/#{lang}", expires_in: 7.days, skip_nil: true) do
-      translate_handoff(lang)
-    end
-    translated.presence || HANDOFF_MESSAGE
-  rescue StandardError
-    HANDOFF_MESSAGE
-  end
-
-  def detected_customer_language
-    message = @conversation.messages.incoming.last
-    return if message.blank?
-
-    # 异步检测可能尚未落库,用本地 CLD3 同步兜底(毫秒级,无外部调用)
-    message.content_attributes['detected_language'].presence ||
-      Messages::LanguageDetectionService.new(text: message.content).perform
-  end
-
-  def translate_handoff(lang)
-    Llm::TranslationService.new(
-      content: HANDOFF_MESSAGE, target_language: lang, account: @conversation.account
-    ).perform.presence
-  end
-
-  def create_message(content)
+  def create_message(content, content_attributes: {})
     @conversation.messages.create!(
       message_type: :outgoing,
       account_id: @conversation.account_id,
       inbox_id: @conversation.inbox_id,
       content: content,
+      content_attributes: content_attributes,
       sender: bot_sender
     )
   end

@@ -249,6 +249,10 @@ class Conversation < ApplicationRecord
     return unless inbox.active_bot?
     return if assignee_id.blank?
 
+    # 真人会话结束:先发「已完成」状态标记(带刚才的客服名,历史可还原),
+    # 再把会话交还机器人.
+    announce_agent_resolved
+
     merged = (additional_attributes || {}).merge(
       'last_human_agent_id' => assignee_id,
       'last_human_agent_name' => assignee&.name
@@ -256,6 +260,20 @@ class Conversation < ApplicationRecord
     # rubocop:disable Rails/SkipsModelValidations
     update_columns(additional_attributes: merged, assignee_id: nil)
     # rubocop:enable Rails/SkipsModelValidations
+  end
+
+  # 「客服已完成」状态标记消息.message_type outgoing(非 activity/非 private),
+  # 联系人侧 public API 历史才取得到;content_attributes.lt_status 驱动客户端渲染.
+  def announce_agent_resolved
+    messages.create!(
+      message_type: :outgoing,
+      account_id: account_id,
+      inbox_id: inbox_id,
+      content: 'The conversation has been resolved.',
+      content_attributes: { 'lt_status' => 'agent_resolved', 'agent_name' => assignee&.name }
+    )
+  rescue StandardError => e
+    Rails.logger.warn("[Conversation#announce_agent_resolved] failed: #{e.message}")
   end
 
   def ensure_snooze_until_reset

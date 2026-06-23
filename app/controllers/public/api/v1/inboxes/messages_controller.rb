@@ -49,7 +49,11 @@ class Public::Api::V1::Inboxes::MessagesController < Public::Api::V1::InboxesCon
   end
 
   def permitted_params
-    params.permit(:content, :echo_id)
+    # `content_attributes.lt_request` lets the mobile "Live agent" button signal
+    # an explicit handoff request deterministically (consumed by
+    # Llm::AssistantResponseJob#explicit_handoff_request?), independent of the
+    # natural-language handoff keywords.
+    params.permit(:content, :echo_id, content_attributes: [:lt_request])
   end
 
   def set_message
@@ -63,6 +67,7 @@ class Public::Api::V1::Inboxes::MessagesController < Public::Api::V1::InboxesCon
       content: permitted_params[:content],
       inbox_id: @conversation.inbox_id,
       echo_id: permitted_params[:echo_id],
+      content_attributes: permitted_params[:content_attributes].to_h,
       message_type: :incoming
     }
   end

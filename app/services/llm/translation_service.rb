@@ -93,7 +93,12 @@ class Llm::TranslationService
       "#{provider[:base_url].chomp('/')}/chat/completions",
       headers: { 'Content-Type' => 'application/json', 'Authorization' => "Bearer #{provider[:api_key]}" },
       body: request_body(provider[:model]),
-      timeout: 45
+      # Split the timeouts: a short open_timeout fails over fast when a provider
+      # is unreachable (e.g. a blocked endpoint) instead of stalling ~45s, while
+      # a generous read_timeout still lets a connected-but-slow model finish
+      # (long messages / load) so legitimate translations are not cut off.
+      open_timeout: 5,
+      read_timeout: 30
     )
   end
 
