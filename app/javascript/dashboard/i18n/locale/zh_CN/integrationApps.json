@@ -36,6 +36,7 @@
         "EMPTY": "暂无资料. 添加可供助理引用的参考资料",
         "ADD_BUTTON": "添加资料",
         "REFRESH_BUTTON": "刷新",
+        "REBUILD_BUTTON": "重建向量库",
         "LOADING": "正在加载资料…",
         "STATUS": {
           "PROCESSING": "处理中",
@@ -44,6 +45,14 @@
         },
         "LIST_API": {
           "ERROR_MESSAGE": "无法加载资料, 请重试"
+        },
+        "REBUILD": {
+          "API": {
+            "SUCCESS_MESSAGE": "已开始重建知识库向量索引…",
+            "ERROR_MESSAGE": "重建启动失败, 请重试.",
+            "DONE": "知识库重建完成",
+            "DONE_WITH_FAILURES": "重建完成, {count} 篇文档向量化失败"
+          }
         },
         "FORM": {
           "TITLE": "添加资料",
@@ -54,11 +63,16 @@
           "UPLOAD_HINT": "或上传 txt/md 文件",
           "UPLOAD_ERROR": "无法读取文件, 请重试",
           "SUBMIT": "添加",
+          "SAVE": "保存",
           "CANCEL": "取消",
           "VALIDATION": "标题和内容均为必填",
+          "EDIT_TITLE": "编辑资料",
+          "LOAD_ERROR": "无法加载该资料, 请重试.",
           "API": {
             "SUCCESS_MESSAGE": "资料添加成功",
-            "ERROR_MESSAGE": "无法添加资料, 请重试"
+            "ERROR_MESSAGE": "无法添加资料, 请重试",
+            "UPDATE_SUCCESS_MESSAGE": "资料更新成功",
+            "UPDATE_ERROR_MESSAGE": "资料更新失败, 请重试."
           }
         },
         "DELETE": {

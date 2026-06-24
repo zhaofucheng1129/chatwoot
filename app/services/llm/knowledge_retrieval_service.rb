@@ -7,6 +7,9 @@ class Llm::KnowledgeRetrievalService
   pattr_initialize [:hook!, :query!]
 
   TOP_N = 5
+  # 最小余弦相似度阈值:低于此分数的切片视为不相关,不注入(防幻觉/噪声).
+  # 不同 embedding 模型相似度分布不同,上线后按实际命中分数微调.
+  MIN_SIMILARITY = 0.6
 
   def perform
     return [] if current_model.blank? || query.blank?
@@ -39,9 +42,14 @@ class Llm::KnowledgeRetrievalService
     @fresh_document_ids ||= ready_documents.where(embedding_model: current_model).pluck(:id)
   end
 
-  # 模型不一致的旧文档,触发重建后本次跳过
+  # 模型不一致的旧文档,触发重建后本次跳过.先置为 processing 再入队,避免后续
+  # 每次查询都对同一批文档重复 perform_later(任务风暴).
   def rebuild_stale_documents
-    ready_documents.where.not(embedding_model: current_model).find_each do |document|
+    stale = ready_documents.where.not(embedding_model: current_model)
+    return if stale.empty?
+
+    stale.find_each do |document|
+      document.processing!
       AiAssistant::DocumentProcessJob.perform_later(document.id)
     end
   end
@@ -50,33 +58,16 @@ class Llm::KnowledgeRetrievalService
     Llm::EmbeddingService.new(texts: [query], hook: hook).perform&.first
   end
 
-  # 全量加载切片(量级几百)在 Ruby 内做余弦相似度,取 top N.
+  # pgvector 在库内算余弦距离并取最近的 TOP_N 条切片,只把候选(含距离)取回
+  # Ruby,不再全量加载向量.neighbor_distance 是余弦距离(= 1 - 余弦相似度),
+  # 据此用 MIN_SIMILARITY 过滤掉不相关切片.
   def top_chunks(vector)
-    rows = AiAssistant::DocumentChunk.where(document_id: fresh_document_ids).pluck(:content, :embedding)
-    rows.filter_map { |content, embedding| score_row(content, embedding, vector) }
-        .sort_by { |item| -item[:score] }
-        .first(TOP_N)
-        .pluck(:content)
-  end
-
-  def score_row(content, embedding, vector)
-    return if embedding.blank?
-
-    { content: content, score: cosine_similarity(vector, embedding) }
-  end
-
-  def cosine_similarity(vec_a, vec_b)
-    dot = 0.0
-    norm_a = 0.0
-    norm_b = 0.0
-    vec_a.each_with_index do |val, index|
-      other = vec_b[index].to_f
-      dot += val * other
-      norm_a += val * val
-      norm_b += other * other
-    end
-    return 0.0 if norm_a.zero? || norm_b.zero?
-
-    dot / (Math.sqrt(norm_a) * Math.sqrt(norm_b))
+    max_distance = 1.0 - MIN_SIMILARITY
+    AiAssistant::DocumentChunk
+      .where(document_id: fresh_document_ids)
+      .nearest_neighbors(:embedding, vector, distance: 'cosine')
+      .first(TOP_N)
+      .select { |chunk| chunk.neighbor_distance <= max_distance }
+      .map(&:content)
   end
 end

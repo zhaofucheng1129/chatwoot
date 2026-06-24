@@ -1,4 +1,7 @@
-# 文本向量化服务,基于 OpenAI 兼容的 /embeddings 接口.
+# 文本向量化服务.支持两类供应商接口:
+#   - OpenAI 兼容文本接口 /embeddings:一次请求批量返回等长向量(文本模型);
+#   - 火山方舟多模态接口 /embeddings/multimodal:input 为 content 数组,单次仅
+#     返回一个向量,需逐条请求(doubao-embedding-vision 等多模态模型).
 #
 # 从 ai_assistant Integrations::Hook 的 settings 读取向量模型配置:
 # embedding_base_url/embedding_api_key 缺省时回退 base_url/api_key,
@@ -8,6 +11,7 @@ class Llm::EmbeddingService
   pattr_initialize [:texts!, :hook!]
 
   MAX_RETRY = 3
+  OPEN_TIMEOUT = 5
   TIMEOUT = 30
 
   def configured?
@@ -18,10 +22,7 @@ class Llm::EmbeddingService
   def perform
     return if texts.blank? || !configured?
 
-    response = request_with_retry
-    return unless response
-
-    extract_embeddings(response)
+    multimodal? ? embed_multimodal : embed_text_batch
   end
 
   private
@@ -42,13 +43,41 @@ class Llm::EmbeddingService
     settings['embedding_api_key'].presence || settings['api_key']
   end
 
+  # 多模态向量模型(doubao-embedding-vision)走独立的 /embeddings/multimodal 接口,
+  # input 是 content 数组且单次仅返回一个向量,需逐条请求(不能批量).
+  def multimodal?
+    model.to_s.include?('vision') || model.to_s.include?('multimodal')
+  end
+
+  # 文本模型:一次请求批量返回,按 index 排序还原顺序.
+  def embed_text_batch
+    response = request_with_retry { post_text }
+    return unless response
+
+    data = response.parsed_response['data']
+    return unless data.is_a?(Array)
+
+    data.sort_by { |item| item['index'].to_i }.pluck('embedding')
+  end
+
+  # 多模态模型:逐条请求;任一条失败(向量为空)则整体返回 nil 由调用方降级.
+  def embed_multimodal
+    vectors = texts.map do |text|
+      response = request_with_retry { post_multimodal(text) }
+      response&.parsed_response&.dig('data', 'embedding')
+    end
+    return if vectors.any?(&:blank?)
+
+    vectors
+  end
+
   def request_with_retry
     (1..MAX_RETRY).each do |attempt|
-      response = post_request
+      response = yield
       return response if response.success?
 
-      # 免费档模型常见 429 限流,退避后重试;其它错误码直接放弃.
-      break unless response.code == 429 && attempt < MAX_RETRY
+      # 429 限流或 5xx 服务端错误才退避重试;4xx(鉴权/参数)直接放弃.
+      break unless (response.code == 429 || response.code >= 500) && attempt < MAX_RETRY
 
       sleep(attempt * 1.5)
     end
@@ -58,20 +87,31 @@ class Llm::EmbeddingService
     nil
   end
 
-  def post_request
+  def post_text
     HTTParty.post(
       "#{base_url.to_s.chomp('/')}/embeddings",
-      headers: { 'Content-Type' => 'application/json', 'Authorization' => "Bearer #{api_key}" },
+      headers: auth_headers,
       body: { model: model, input: Array(texts) }.to_json,
-      timeout: TIMEOUT
+      open_timeout: OPEN_TIMEOUT,
+      read_timeout: TIMEOUT
     )
   end
 
-  # 按 index 排序还原顺序,返回纯向量数组.
-  def extract_embeddings(response)
-    data = response.parsed_response['data']
-    return unless data.is_a?(Array)
+  def post_multimodal(text)
+    HTTParty.post(
+      "#{base_url.to_s.chomp('/')}/embeddings/multimodal",
+      headers: auth_headers,
+      body: {
+        model: model,
+        encoding_format: 'float',
+        input: [{ type: 'text', text: text }]
+      }.to_json,
+      open_timeout: OPEN_TIMEOUT,
+      read_timeout: TIMEOUT
+    )
+  end
 
-    data.sort_by { |item| item['index'].to_i }.pluck('embedding')
+  def auth_headers
+    { 'Content-Type' => 'application/json', 'Authorization' => "Bearer #{api_key}" }
   end
 end

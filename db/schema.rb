@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_06_11_000002) do
+ActiveRecord::Schema[7.1].define(version: 2026_06_24_000001) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -148,7 +148,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_11_000002) do
   create_table "ai_assistant_document_chunks", force: :cascade do |t|
     t.bigint "document_id", null: false
     t.text "content", null: false
-    t.jsonb "embedding"
+    t.vector "embedding"
     t.integer "position"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false

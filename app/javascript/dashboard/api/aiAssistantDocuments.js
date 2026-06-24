@@ -18,6 +18,18 @@ class AiAssistantDocumentsAPI extends ApiClient {
       content,
     });
   }
+
+  show(id) {
+    return axios.get(`${this.url}/${id}`);
+  }
+
+  update({ id, title, content }) {
+    return axios.patch(`${this.url}/${id}`, { title, content });
+  }
+
+  reprocess(hookId) {
+    return axios.post(`${this.url}/reprocess`, { hook_id: hookId });
+  }
 }
 
 export default new AiAssistantDocumentsAPI();

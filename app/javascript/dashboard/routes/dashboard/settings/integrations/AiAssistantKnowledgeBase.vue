@@ -16,16 +16,28 @@ const props = defineProps({
 
 const { t } = useI18n();
 
+// Rebuild 轮询:每 2s 拉一次状态,最多 30 次(~1 分钟),直到没有 processing 文档.
+const REBUILD_POLL_INTERVAL = 2000;
+const REBUILD_MAX_POLLS = 30;
+
+const sleep = ms =>
+  new Promise(resolve => {
+    setTimeout(resolve, ms);
+  });
+
 const expanded = ref(false);
 const isLoading = ref(false);
 const hasLoaded = ref(false);
 const documents = ref([]);
+const isReprocessing = ref(false);
 
 const showAddModal = ref(false);
 const isSubmitting = ref(false);
 const formTitle = ref('');
 const formContent = ref('');
 const fileInput = ref(null);
+// null = 新增模式; 文档 id = 编辑模式
+const editingId = ref(null);
 
 const showDeleteModal = ref(false);
 const selectedDocument = ref({});
@@ -50,18 +62,21 @@ const formattedDate = createdAt => {
   return messageTimestamp(unix);
 };
 
-const fetchDocuments = async () => {
-  isLoading.value = true;
+const fetchDocuments = async (silent = false) => {
+  if (!silent) isLoading.value = true;
   try {
     const { data } = await AiAssistantDocumentsAPI.list(props.hookId);
     documents.value = data || [];
     hasLoaded.value = true;
   } catch (error) {
-    useAlert(
-      t('INTEGRATION_APPS.AI_ASSISTANT.KNOWLEDGE_BASE.LIST_API.ERROR_MESSAGE')
-    );
+    // 轮询(silent)时不弹错误,避免刷屏;只在用户主动加载时提示.
+    if (!silent) {
+      useAlert(
+        t('INTEGRATION_APPS.AI_ASSISTANT.KNOWLEDGE_BASE.LIST_API.ERROR_MESSAGE')
+      );
+    }
   } finally {
-    isLoading.value = false;
+    if (!silent) isLoading.value = false;
   }
 };
 
@@ -73,9 +88,69 @@ const toggleExpanded = () => {
 };
 
 const openAddModal = () => {
+  editingId.value = null;
   formTitle.value = '';
   formContent.value = '';
   showAddModal.value = true;
+};
+
+const openEditModal = async document => {
+  try {
+    const { data } = await AiAssistantDocumentsAPI.show(document.id);
+    formTitle.value = data.title || '';
+    formContent.value = data.content || '';
+    editingId.value = document.id;
+    showAddModal.value = true;
+  } catch (error) {
+    useAlert(t('INTEGRATION_APPS.AI_ASSISTANT.KNOWLEDGE_BASE.FORM.LOAD_ERROR'));
+  }
+};
+
+const rebuildIndex = async () => {
+  isReprocessing.value = true;
+  try {
+    try {
+      await AiAssistantDocumentsAPI.reprocess(props.hookId);
+    } catch (error) {
+      useAlert(
+        t(
+          'INTEGRATION_APPS.AI_ASSISTANT.KNOWLEDGE_BASE.REBUILD.API.ERROR_MESSAGE'
+        )
+      );
+      return;
+    }
+
+    // 重建是异步的(Sidekiq),轮询刷新状态,文档状态点会随之 red->amber->green
+    // 实时变化,直到没有 processing 或超时为止.
+    for (let i = 0; i < REBUILD_MAX_POLLS; i += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await fetchDocuments(true);
+      const stillProcessing = documents.value.some(
+        document => document.status === 'processing'
+      );
+      if (!stillProcessing) break;
+      // eslint-disable-next-line no-await-in-loop
+      await sleep(REBUILD_POLL_INTERVAL);
+    }
+
+    const failures = documents.value.filter(
+      document => document.status === 'failed'
+    );
+    if (failures.length === 0) {
+      useAlert(
+        t('INTEGRATION_APPS.AI_ASSISTANT.KNOWLEDGE_BASE.REBUILD.API.DONE')
+      );
+    } else {
+      useAlert(
+        t(
+          'INTEGRATION_APPS.AI_ASSISTANT.KNOWLEDGE_BASE.REBUILD.API.DONE_WITH_FAILURES',
+          { count: failures.length }
+        )
+      );
+    }
+  } finally {
+    isReprocessing.value = false;
+  }
 };
 
 const onFileChange = event => {
@@ -108,20 +183,43 @@ const submitDocument = async () => {
   }
   isSubmitting.value = true;
   try {
-    await AiAssistantDocumentsAPI.create({
-      hookId: props.hookId,
-      title: formTitle.value.trim(),
-      content: formContent.value.trim(),
-    });
-    useAlert(
-      t('INTEGRATION_APPS.AI_ASSISTANT.KNOWLEDGE_BASE.FORM.API.SUCCESS_MESSAGE')
-    );
+    if (editingId.value) {
+      await AiAssistantDocumentsAPI.update({
+        id: editingId.value,
+        title: formTitle.value.trim(),
+        content: formContent.value.trim(),
+      });
+      useAlert(
+        t(
+          'INTEGRATION_APPS.AI_ASSISTANT.KNOWLEDGE_BASE.FORM.API.UPDATE_SUCCESS_MESSAGE'
+        )
+      );
+    } else {
+      await AiAssistantDocumentsAPI.create({
+        hookId: props.hookId,
+        title: formTitle.value.trim(),
+        content: formContent.value.trim(),
+      });
+      useAlert(
+        t(
+          'INTEGRATION_APPS.AI_ASSISTANT.KNOWLEDGE_BASE.FORM.API.SUCCESS_MESSAGE'
+        )
+      );
+    }
     showAddModal.value = false;
     await fetchDocuments();
   } catch (error) {
-    useAlert(
-      t('INTEGRATION_APPS.AI_ASSISTANT.KNOWLEDGE_BASE.FORM.API.ERROR_MESSAGE')
-    );
+    if (editingId.value) {
+      useAlert(
+        t(
+          'INTEGRATION_APPS.AI_ASSISTANT.KNOWLEDGE_BASE.FORM.API.UPDATE_ERROR_MESSAGE'
+        )
+      );
+    } else {
+      useAlert(
+        t('INTEGRATION_APPS.AI_ASSISTANT.KNOWLEDGE_BASE.FORM.API.ERROR_MESSAGE')
+      );
+    }
   } finally {
     isSubmitting.value = false;
   }
@@ -180,6 +278,18 @@ const confirmDeletion = async () => {
             "
             :disabled="isLoading"
             @click="fetchDocuments"
+          />
+          <NextButton
+            slate
+            faded
+            xs
+            icon="i-lucide-database-zap"
+            :label="
+              $t('INTEGRATION_APPS.AI_ASSISTANT.KNOWLEDGE_BASE.REBUILD_BUTTON')
+            "
+            :is-loading="isReprocessing"
+            :disabled="isReprocessing || !documents.length"
+            @click="rebuildIndex"
           />
           <NextButton
             blue
@@ -245,6 +355,13 @@ const confirmDeletion = async () => {
             </span>
           </span>
           <NextButton
+            slate
+            faded
+            xs
+            icon="i-lucide-pencil"
+            @click="openEditModal(document)"
+          />
+          <NextButton
             ruby
             faded
             xs
@@ -261,7 +378,13 @@ const confirmDeletion = async () => {
     >
       <div class="flex flex-col gap-4 p-8">
         <h2 class="text-xl font-medium text-n-slate-12">
-          {{ $t('INTEGRATION_APPS.AI_ASSISTANT.KNOWLEDGE_BASE.FORM.TITLE') }}
+          {{
+            editingId
+              ? $t(
+                  'INTEGRATION_APPS.AI_ASSISTANT.KNOWLEDGE_BASE.FORM.EDIT_TITLE'
+                )
+              : $t('INTEGRATION_APPS.AI_ASSISTANT.KNOWLEDGE_BASE.FORM.TITLE')
+          }}
         </h2>
         <label class="flex flex-col gap-1 text-sm text-n-slate-12">
           {{
@@ -322,7 +445,9 @@ const confirmDeletion = async () => {
           <NextButton
             blue
             :label="
-              $t('INTEGRATION_APPS.AI_ASSISTANT.KNOWLEDGE_BASE.FORM.SUBMIT')
+              editingId
+                ? $t('INTEGRATION_APPS.AI_ASSISTANT.KNOWLEDGE_BASE.FORM.SAVE')
+                : $t('INTEGRATION_APPS.AI_ASSISTANT.KNOWLEDGE_BASE.FORM.SUBMIT')
             "
             :is-loading="isSubmitting"
             :disabled="isSubmitting || !isFormValid"

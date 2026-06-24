@@ -4,7 +4,9 @@
 # handoff 信号/请求失败时,发送一条过渡消息并 bot_handoff! 转人工;否则把模型
 # 回复作为 bot 消息(无 sender)写回会话.任何异常都兜底转人工,避免客户消息无人响应.
 class Llm::AssistantResponseJob < ApplicationJob
-  queue_as :low
+  # 面向客户的 AI 回复属高时效任务,放 default 队列(高于 low 的文档索引等后台任务),
+  # 避免被 low 队列里的批处理拖慢回复.
+  queue_as :default
 
   # 转人工过渡消息的基底文案,实际发送前按客户语言翻译.
   HANDOFF_MESSAGE = 'Transferring you to a human agent, please hold on.'.freeze

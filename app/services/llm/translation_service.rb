@@ -77,8 +77,8 @@ class Llm::TranslationService
       response = post_request(provider)
       return extract_content(response) if response.success?
 
-      # Free-tier models are rate-limited (429); back off and retry.
-      break unless response.code == 429 && attempt < MAX_RETRY
+      # Retry on rate-limit (429) or 5xx server errors; give up on 4xx.
+      break unless (response.code == 429 || response.code >= 500) && attempt < MAX_RETRY
 
       sleep(attempt * 1.5)
     end

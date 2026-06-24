@@ -345,7 +345,11 @@ Rails.application.routes.draw do
 
           resources :webhooks, only: [:index, :create, :update, :destroy]
           namespace :ai_assistant do
-            resources :documents, only: [:index, :create, :destroy]
+            resources :documents, only: [:index, :show, :create, :update, :destroy] do
+              collection do
+                post :reprocess
+              end
+            end
           end
           namespace :integrations do
             resources :apps, only: [:index, :show]

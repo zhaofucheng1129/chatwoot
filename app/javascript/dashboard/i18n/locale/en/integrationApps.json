@@ -36,6 +36,7 @@
         "EMPTY": "No documents yet. Add reference material the assistant can cite.",
         "ADD_BUTTON": "Add material",
         "REFRESH_BUTTON": "Refresh",
+        "REBUILD_BUTTON": "Rebuild index",
         "LOADING": "Loading documents…",
         "STATUS": {
           "PROCESSING": "Processing",
@@ -44,6 +45,14 @@
         },
         "LIST_API": {
           "ERROR_MESSAGE": "Could not load documents, please try again."
+        },
+        "REBUILD": {
+          "API": {
+            "SUCCESS_MESSAGE": "Rebuilding the knowledge base index…",
+            "ERROR_MESSAGE": "Could not start rebuild, please try again.",
+            "DONE": "Knowledge base rebuilt successfully",
+            "DONE_WITH_FAILURES": "Rebuild finished — {count} document(s) failed to embed"
+          }
         },
         "FORM": {
           "TITLE": "Add material",
@@ -54,11 +63,16 @@
           "UPLOAD_HINT": "or upload a txt/md file",
           "UPLOAD_ERROR": "Could not read the file, please try again.",
           "SUBMIT": "Add",
+          "SAVE": "Save",
           "CANCEL": "Cancel",
           "VALIDATION": "Title and content are required.",
+          "EDIT_TITLE": "Edit material",
+          "LOAD_ERROR": "Could not load the document, please try again.",
           "API": {
             "SUCCESS_MESSAGE": "Material added successfully",
-            "ERROR_MESSAGE": "Could not add material, please try again."
+            "ERROR_MESSAGE": "Could not add material, please try again.",
+            "UPDATE_SUCCESS_MESSAGE": "Material updated successfully",
+            "UPDATE_ERROR_MESSAGE": "Could not update material, please try again."
           }
         },
         "DELETE": {

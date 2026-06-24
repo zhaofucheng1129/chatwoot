@@ -8,11 +8,20 @@ class Llm::AssistantChatService
   pattr_initialize [:conversation!, :hook!]
 
   MAX_RETRY = 3
+  OPEN_TIMEOUT = 5
   TIMEOUT = 60
   # 历史消息条数与单条字符上限
   HISTORY_LIMIT = 20
   MAX_MESSAGE_LENGTH = 10_000
   HANDOFF_TOKEN = '[[HANDOFF]]'.freeze
+
+  # Default reply/handoff rules appended after the per-inbox system prompt.
+  # Overridable via the hook's `behavior_prompt` setting (Settings ->
+  # Integrations -> AI Assistant). An override MUST keep the HANDOFF_TOKEN
+  # marker so the server can still detect an explicit handoff.
+  DEFAULT_BEHAVIOR_PROMPT = <<~PROMPT.strip
+    Always reply in the same language the customer used in their latest message. When you cannot answer or do not understand the request, do NOT transfer to a human automatically: briefly apologize and invite the customer to tap the "Live agent" button if they need a human. Only append the marker #{HANDOFF_TOKEN} at the very end of your reply when the customer EXPLICITLY asks for a human / live agent.
+  PROMPT
 
   # 返回 { content:, handoff: } ;请求失败返回 nil 由调用方做 handoff 兜底.
   def perform
@@ -33,8 +42,8 @@ class Llm::AssistantChatService
       response = post_request
       return response if response.success?
 
-      # 免费档模型常见 429 限流,退避后重试;其它错误码直接放弃.
-      break unless response.code == 429 && attempt < MAX_RETRY
+      # 429 限流或 5xx 服务端错误才退避重试;4xx(鉴权/参数)直接放弃.
+      break unless (response.code == 429 || response.code >= 500) && attempt < MAX_RETRY
 
       sleep(attempt * 1.5)
     end
@@ -49,23 +58,26 @@ class Llm::AssistantChatService
       "#{settings['base_url'].to_s.chomp('/')}/chat/completions",
       headers: { 'Content-Type' => 'application/json', 'Authorization' => "Bearer #{settings['api_key']}" },
       body: request_body,
-      timeout: TIMEOUT
+      open_timeout: OPEN_TIMEOUT,
+      read_timeout: TIMEOUT
     )
   end
 
   def request_body
-    {
+    body = {
       model: settings['model'],
       temperature: 0.5,
       messages: [{ role: 'system', content: system_prompt }] + history_messages
-    }.to_json
+    }
+    # Volcengine Doubao reasoning models default to chain-of-thought, which makes
+    # replies slow and unstable for live chat. Disable it when configured.
+    body[:thinking] = { type: 'disabled' } if ActiveModel::Type::Boolean.new.cast(settings['disable_thinking'])
+    body.to_json
   end
 
   def system_prompt
-    "#{settings['system_prompt']}#{knowledge_section}\n\n" \
-      'Always reply in the same language the customer used in their latest message. ' \
-      "If you cannot answer the customer's question, or the customer explicitly asks for a human/live agent, " \
-      "append the marker #{HANDOFF_TOKEN} at the very end of your reply."
+    rules = settings['behavior_prompt'].presence || DEFAULT_BEHAVIOR_PROMPT
+    "#{settings['system_prompt']}#{knowledge_section}\n\n#{rules}"
   end
 
   # 命中知识库时拼接参考资料段落;未启用或无命中返回空串.
