@@ -23,20 +23,28 @@ class Llm::AssistantResponseJob < ApplicationJob
     # 「人工客服」后先闪一下"AI 助理思考中"再切到"正在为您接入人工客服".
     return handoff if explicit_handoff_request? || handoff_keyword_hit?
 
-    # 客户在 AI 生成回复期间看到"正在输入"状态(外部 bot 经 API 回帖不会自动
-    # 发 typing, 这里以机器人身份显式广播). ensure 确保任何路径都会关闭.
+    # 输入护栏:命中高置信度提示词注入(越狱/套设定)时直接回标准话术,不调用模型、
+    # 不转人工(模型不被触达, 自然无法被引导).
+    return reply_with_guard_message if injection_detected?
+
+    generate_reply
+  end
+
+  private
+
+  # 客户在 AI 生成回复期间看到"正在输入"状态(外部 bot 经 API 回帖不会自动
+  # 发 typing, 这里以机器人身份显式广播). ensure 确保任何路径都会关闭.
+  def generate_reply
     trigger_typing(Events::Types::CONVERSATION_TYPING_ON)
     begin
       respond_with_llm
     rescue StandardError => e
-      Rails.logger.error("[Llm::AssistantResponseJob] failed for conversation #{conversation&.id}: #{e.class} #{e.message}")
+      Rails.logger.error("[Llm::AssistantResponseJob] failed for conversation #{@conversation&.id}: #{e.class} #{e.message}")
       handoff
     ensure
       trigger_typing(Events::Types::CONVERSATION_TYPING_OFF)
     end
   end
-
-  private
 
   # 以机器人身份广播 typing 状态; 经 ActionCableListener 推到联系人.
   # 需要 bot 身份(push_event_data), 未设 bot_name 时跳过.
@@ -49,6 +57,18 @@ class Llm::AssistantResponseJob < ApplicationJob
     )
   rescue StandardError => e
     Rails.logger.warn("[Llm::AssistantResponseJob] typing dispatch failed: #{e.message}")
+  end
+
+  def guard
+    @guard ||= Llm::ResponseGuardService.new(settings: @hook.settings || {})
+  end
+
+  def injection_detected?
+    guard.injection?(@conversation.messages.incoming.last&.content)
+  end
+
+  def reply_with_guard_message
+    create_message(guard.safe_message)
   end
 
   def respond_with_llm

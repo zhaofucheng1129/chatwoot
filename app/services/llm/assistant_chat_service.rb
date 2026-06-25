@@ -14,6 +14,9 @@ class Llm::AssistantChatService
   HISTORY_LIMIT = 20
   MAX_MESSAGE_LENGTH = 10_000
   HANDOFF_TOKEN = '[[HANDOFF]]'.freeze
+  # 检索查询纳入的最近客户消息条数(多轮上下文)与查询字符上限
+  RETRIEVAL_CONTEXT_TURNS = 3
+  MAX_QUERY_LENGTH = 1_000
 
   # Default reply/handoff rules appended after the per-inbox system prompt.
   # Overridable via the hook's `behavior_prompt` setting (Settings ->
@@ -28,13 +31,21 @@ class Llm::AssistantChatService
     response = request_with_retry
     return unless response
 
-    parse(extract_content(response))
+    content = extract_content(response)
+    # 输出护栏:模型回复疑似泄露系统设定/越狱合规时, 用安全话术替换(不转人工).
+    return { content: guard.safe_message, handoff: false } if guard.leaked?(content)
+
+    parse(content)
   end
 
   private
 
   def settings
     @settings ||= hook.settings || {}
+  end
+
+  def guard
+    @guard ||= Llm::ResponseGuardService.new(settings: settings)
   end
 
   def request_with_retry
@@ -91,16 +102,21 @@ class Llm::AssistantChatService
   end
 
   def retrieved_chunks
-    @retrieved_chunks ||= Llm::KnowledgeRetrievalService.new(hook: hook, query: last_customer_message).perform
+    @retrieved_chunks ||= Llm::KnowledgeRetrievalService.new(hook: hook, query: retrieval_query).perform
   rescue StandardError => e
     # 检索失败降级:跳过 RAG 照常回答,不阻塞回复.
     Rails.logger.error("[Llm::AssistantChatService] knowledge retrieval failed #{e.class}: #{e.message}")
     []
   end
 
-  # 客户最后一条消息文本,作为检索查询.
-  def last_customer_message
-    conversation.messages.where(message_type: :incoming, private: false).last&.content.to_s
+  # 检索查询:取最近 RETRIEVAL_CONTEXT_TURNS 条客户消息按时间顺序拼接,为多轮追问
+  # (如「那退费呢?」)补足上下文,提升知识库召回准确度;最新一条仍主导语义.
+  def retrieval_query
+    conversation.messages
+                .where(message_type: :incoming, private: false)
+                .last(RETRIEVAL_CONTEXT_TURNS)
+                .filter_map { |message| message.content.to_s.strip.presence }
+                .join("\n")[0, MAX_QUERY_LENGTH]
   end
 
   # 取最近 HISTORY_LIMIT 条 incoming/outgoing 聊天消息(排除私有备注与活动消息).
