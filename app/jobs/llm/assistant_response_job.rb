@@ -23,14 +23,38 @@ class Llm::AssistantResponseJob < ApplicationJob
     # 「人工客服」后先闪一下"AI 助理思考中"再切到"正在为您接入人工客服".
     return handoff if explicit_handoff_request? || handoff_keyword_hit?
 
-    # 输入护栏:命中高置信度提示词注入(越狱/套设定)时直接回标准话术,不调用模型、
-    # 不转人工(模型不被触达, 自然无法被引导).
-    return reply_with_guard_message if injection_detected?
+    # 输入护栏:命中提示词注入/越狱/离题诱导时直接回标准话术,不调用主模型、不转人工
+    # (模型不被触达, 自然无法被引导).先跑零成本的字面正则, 再跑 LLM 语义判别.
+    return reply_with_guard_message if guarded_input?
 
     generate_reply
   end
 
   private
+
+  # 取最近 GUARD_CONTEXT_TURNS 条客户消息(多轮上下文), 覆盖渐进式/拆分注入.
+  GUARD_CONTEXT_TURNS = 4
+
+  def recent_customer_messages
+    @recent_customer_messages ||=
+      @conversation.messages
+                   .where(message_type: :incoming, private: false)
+                   .last(GUARD_CONTEXT_TURNS)
+                   .filter_map { |message| message.content.to_s.strip.presence }
+  end
+
+  # 先字面正则(对拼接后的多轮文本, 可挡拆分注入), 命中则跳过更贵的 LLM 判别.
+  def guarded_input?
+    return true if guard.injection?(recent_customer_messages.join("\n"))
+
+    Llm::GuardClassifierService.new(
+      settings: @hook.settings || {}, messages: recent_customer_messages
+    ).suspicious?
+  end
+
+  def reply_with_guard_message
+    create_message(guard.safe_message)
+  end
 
   # 客户在 AI 生成回复期间看到"正在输入"状态(外部 bot 经 API 回帖不会自动
   # 发 typing, 这里以机器人身份显式广播). ensure 确保任何路径都会关闭.
@@ -61,14 +85,6 @@ class Llm::AssistantResponseJob < ApplicationJob
 
   def guard
     @guard ||= Llm::ResponseGuardService.new(settings: @hook.settings || {})
-  end
-
-  def injection_detected?
-    guard.injection?(@conversation.messages.incoming.last&.content)
-  end
-
-  def reply_with_guard_message
-    create_message(guard.safe_message)
   end
 
   def respond_with_llm
