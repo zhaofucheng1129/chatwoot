@@ -26,11 +26,11 @@ class Integrations::Hook < ApplicationRecord
 
   validates :account_id, presence: true
   validates :app_id, presence: true
-  validates :inbox_id, presence: true, if: -> { hook_type == 'inbox' }
+  # ai_assistant 走 ai_assistant_inboxes 中间表关联多个收件箱, 不再依赖单个 inbox_id;
+  # 其它 inbox 型集成(dialogflow 等)仍要求 inbox_id
+  validates :inbox_id, presence: true, if: -> { hook_type == 'inbox' && app_id != 'ai_assistant' }
   validate :validate_settings_json_schema
   validate :ensure_feature_enabled
-  # 与原生外部机器人互斥: 同一收件箱两套机器人会互相抢消息
-  validate :ensure_no_active_agent_bot, if: -> { app_id == 'ai_assistant' && enabled? }
   validate :validate_openai_api_key, if: :validate_openai_api_key?
   validates :app_id, uniqueness: { scope: [:account_id], unless: -> { app.present? && app.params[:allow_multiple_hooks].present? } }
 
@@ -42,6 +42,9 @@ class Integrations::Hook < ApplicationRecord
   belongs_to :inbox, optional: true
   # ai_assistant 知识库文档;hook 删除时级联清理(仅 ai_assistant hook 实际有数据)
   has_many :ai_assistant_documents, class_name: 'AiAssistant::Document', dependent: :destroy_async
+  # ai_assistant 助理关联的收件箱(多对多);hook 即「一个助理」, 可服务多个收件箱
+  has_many :ai_assistant_inboxes, class_name: 'AiAssistant::Inbox', dependent: :destroy_async
+  has_many :inboxes, through: :ai_assistant_inboxes, source: :inbox
   has_secure_token :access_token
 
   enum hook_type: { account: 0, inbox: 1 }
@@ -114,12 +117,6 @@ class Integrations::Hook < ApplicationRecord
 
   def ensure_feature_enabled
     errors.add(:feature_flag, 'Feature not enabled') unless feature_allowed?
-  end
-
-  def ensure_no_active_agent_bot
-    return if inbox.blank? || !inbox.agent_bot_inbox&.active?
-
-    errors.add(:base, I18n.t('errors.ai_assistant.agent_bot_conflict'))
   end
 
   def ensure_hook_type

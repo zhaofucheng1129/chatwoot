@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_06_24_000001) do
+ActiveRecord::Schema[7.1].define(version: 2026_06_25_000000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -167,6 +167,16 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_24_000001) do
     t.datetime "updated_at", null: false
     t.index ["account_id"], name: "index_ai_assistant_documents_on_account_id"
     t.index ["hook_id"], name: "index_ai_assistant_documents_on_hook_id"
+  end
+
+  create_table "ai_assistant_inboxes", force: :cascade do |t|
+    t.bigint "hook_id", null: false
+    t.bigint "inbox_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["hook_id", "inbox_id"], name: "index_ai_assistant_inboxes_on_hook_id_and_inbox_id", unique: true
+    t.index ["hook_id"], name: "index_ai_assistant_inboxes_on_hook_id"
+    t.index ["inbox_id"], name: "index_ai_assistant_inboxes_on_inbox_id", unique: true
   end
 
   create_table "applied_slas", force: :cascade do |t|

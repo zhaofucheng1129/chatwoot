@@ -125,10 +125,15 @@ export const actions = {
       throw error;
     }
   },
-  updateHook: async ({ commit }, { hookId, settings }) => {
+  updateHook: async ({ commit }, { hookId, settings, inboxIds }) => {
     commit(types.default.SET_INTEGRATIONS_UI_FLAG, { isUpdatingHook: true });
     try {
-      const response = await IntegrationsAPI.updateHook(hookId, { settings });
+      const payload = { settings };
+      // ai_assistant 助理编辑时同步关联收件箱;其它集成不传该字段
+      if (inboxIds !== undefined) {
+        payload.inbox_ids = inboxIds;
+      }
+      const response = await IntegrationsAPI.updateHook(hookId, payload);
       commit(types.default.UPDATE_INTEGRATION_HOOKS, response.data);
     } catch (error) {
       throw new Error(error);

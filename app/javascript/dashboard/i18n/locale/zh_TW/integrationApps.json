@@ -23,6 +23,14 @@
     },
     "AI_ASSISTANT": {
       "LIST_HINT": "AI 客服助理會自動回覆所連接收件匣中的新客戶訊息",
+      "CONNECTED_INBOXES": "關聯收件匣:",
+      "FORM": {
+        "INBOXES": {
+          "LABEL": "關聯收件匣",
+          "HELP": "該助理(設定 + 知識庫)會服務所選的全部收件匣",
+          "REQUIRED": "請至少選擇一個收件匣"
+        }
+      },
       "TEST_BUTTON": "測試",
       "TESTING": "測試中…",
       "CONNECTED": "連線正常 · {latency}ms",

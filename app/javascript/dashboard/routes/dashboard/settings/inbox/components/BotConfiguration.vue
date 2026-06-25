@@ -42,7 +42,11 @@ export default {
       const integration =
         this.$store.getters['integrations/getIntegration']('ai_assistant');
       return (integration?.hooks || []).find(
-        hook => hook.status && hook.inbox?.id === Number(this.currentInboxId)
+        hook =>
+          hook.status &&
+          (hook.inboxes || []).some(
+            inbox => inbox.id === Number(this.currentInboxId)
+          )
       );
     },
   },

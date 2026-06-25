@@ -51,6 +51,7 @@ en:
     ai_assistant:
       agent_bot_conflict: 'This inbox already has an agent bot connected. Disconnect it in inbox settings (Bot tab) before enabling the AI Assistant.'
       hook_conflict: 'This inbox is handled by the built-in AI Assistant. Disable it under Integrations before connecting an agent bot.'
+      inbox_required: 'Select at least one inbox for the AI Assistant.'
     account:
       reporting_timezone:
         invalid: is not a valid timezone

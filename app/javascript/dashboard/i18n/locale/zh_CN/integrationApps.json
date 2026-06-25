@@ -23,6 +23,14 @@
     },
     "AI_ASSISTANT": {
       "LIST_HINT": "AI 客服助理会自动回复所连接收件箱中的新客户消息",
+      "CONNECTED_INBOXES": "关联收件箱:",
+      "FORM": {
+        "INBOXES": {
+          "LABEL": "关联收件箱",
+          "HELP": "该助理(配置 + 知识库)会服务所选的全部收件箱",
+          "REQUIRED": "请至少选择一个收件箱"
+        }
+      },
       "TEST_BUTTON": "测试",
       "TESTING": "测试中…",
       "CONNECTED": "连接正常 · {latency}ms",

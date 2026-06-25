@@ -30,7 +30,7 @@ class AgentBotInbox < ApplicationRecord
   end
 
   def ensure_no_ai_assistant_hook
-    return unless inbox.hooks.exists?(app_id: 'ai_assistant', status: :enabled)
+    return unless inbox.ai_assistant_hooks.exists?(status: :enabled)
 
     errors.add(:base, I18n.t('errors.ai_assistant.hook_conflict'))
   end

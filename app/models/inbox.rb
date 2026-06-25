@@ -74,6 +74,9 @@ class Inbox < ApplicationRecord
   has_one :agent_bot, through: :agent_bot_inbox
   has_many :webhooks, dependent: :destroy_async
   has_many :hooks, dependent: :destroy_async, class_name: 'Integrations::Hook'
+  # ai_assistant 助理通过中间表关联(一个收件箱最多归属一个助理)
+  has_many :ai_assistant_inboxes, dependent: :destroy_async, class_name: 'AiAssistant::Inbox'
+  has_many :ai_assistant_hooks, through: :ai_assistant_inboxes, source: :hook
 
   enum sender_name_type: { friendly: 0, professional: 1 }
 
@@ -171,8 +174,11 @@ class Inbox < ApplicationRecord
   end
 
   def active_bot?
-    agent_bot_inbox&.active? || hooks.where(app_id: %w[dialogflow ai_assistant],
-                                            status: 'enabled').count.positive?
+    return true if agent_bot_inbox&.active?
+    # dialogflow 仍按 inbox_id 关联;ai_assistant 走中间表
+    return true if hooks.exists?(app_id: 'dialogflow', status: 'enabled')
+
+    ai_assistant_hooks.exists?(status: 'enabled')
   end
 
   def inbox_type

@@ -23,6 +23,14 @@
     },
     "AI_ASSISTANT": {
       "LIST_HINT": "The AI assistant replies automatically to new customer messages on the connected inboxes.",
+      "CONNECTED_INBOXES": "Inboxes:",
+      "FORM": {
+        "INBOXES": {
+          "LABEL": "Connected inboxes",
+          "HELP": "This assistant (settings + knowledge base) serves every selected inbox.",
+          "REQUIRED": "Select at least one inbox."
+        }
+      },
       "TEST_BUTTON": "Test",
       "TESTING": "Testing…",
       "CONNECTED": "Connected · {latency}ms",

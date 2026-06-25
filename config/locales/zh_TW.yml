@@ -37,6 +37,7 @@ zh_TW:
     ai_assistant:
       agent_bot_conflict: '此收件匣已連結外部機器人, 請先在收件匣設定的"機器人"分頁解除連結, 再啟用 AI 客服助理'
       hook_conflict: '此收件匣已由內建 AI 客服助理接管, 請先在 整合 - AI 客服助理 中停用對應設定, 再連結機器人'
+      inbox_required: '請為 AI 客服助理至少選擇一個收件匣'
     account:
       reporting_timezone:
         invalid: 不是有效的時區

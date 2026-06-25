@@ -44,6 +44,10 @@ export default {
           : value;
       return acc;
     }, {});
+    // ai_assistant 助理: 编辑模式预填已关联的收件箱(多选)
+    if (this.integrationId === 'ai_assistant') {
+      values.inbox_ids = (this.hook?.inboxes || []).map(inbox => inbox.id);
+    }
     return {
       endPoint: '',
       alertMessage: '',
@@ -55,6 +59,9 @@ export default {
       uiFlags: 'integrations/getUIFlags',
       dialogFlowEnabledInboxes: 'inboxes/dialogFlowEnabledInboxes',
     }),
+    isAiAssistant() {
+      return this.integration.id === 'ai_assistant';
+    },
     inboxes() {
       return this.dialogFlowEnabledInboxes
         .filter(inbox => {
@@ -66,11 +73,17 @@ export default {
         .map(inbox => ({ label: inbox.name, value: inbox.id }));
     },
 
-    // 按收件箱绑定的集成(dialogflow/ai_assistant): 同一收件箱只允许一条配置,
-    // 已绑定的从下拉中排除
+    // 按收件箱绑定的集成: 同一收件箱只允许归属一个配置/助理, 已占用的从可选项中排除.
+    // ai_assistant 一个助理可关联多个收件箱(hook.inboxes 数组), 且编辑时放行本助理已选的;
+    // 其它集成(dialogflow)仍是单个 hook.inbox.
     connectedInboxIds() {
       if (!this.isHookTypeInbox) {
         return [];
+      }
+      if (this.isAiAssistant) {
+        return this.integration.hooks
+          .filter(hook => !this.isEditing || hook.id !== this.hook.id)
+          .flatMap(hook => (hook.inboxes || []).map(inbox => inbox.id));
       }
       return this.integration.hooks.map(hook => hook.inbox?.id);
     },
@@ -101,8 +114,9 @@ export default {
         settings: {},
       };
 
+      // inbox / inbox_ids 是收件箱关联字段, 不属于 settings
       hookPayload.settings = Object.keys(this.values).reduce((acc, key) => {
-        if (key !== 'inbox') {
+        if (key !== 'inbox' && key !== 'inbox_ids') {
           acc[key] = this.values[key];
         }
         return acc;
@@ -116,8 +130,13 @@ export default {
         }
       });
 
-      if (this.isHookTypeInbox && this.values.inbox) {
-        hookPayload.inbox_id = this.values.inbox;
+      if (this.isHookTypeInbox) {
+        if (this.isAiAssistant) {
+          // 一个助理关联多个收件箱
+          hookPayload.inbox_ids = this.values.inbox_ids || [];
+        } else if (this.values.inbox) {
+          hookPayload.inbox_id = this.values.inbox;
+        }
       }
 
       return hookPayload;
@@ -125,10 +144,15 @@ export default {
     async submitForm() {
       try {
         if (this.isEditing) {
-          await this.$store.dispatch('integrations/updateHook', {
+          const updatePayload = {
             hookId: this.hook.id,
             settings: this.buildHookPayload().settings,
-          });
+          };
+          // ai_assistant 助理编辑时同步关联收件箱
+          if (this.isAiAssistant) {
+            updatePayload.inboxIds = this.values.inbox_ids || [];
+          }
+          await this.$store.dispatch('integrations/updateHook', updatePayload);
           this.alertMessage = this.$t(
             'INTEGRATION_APPS.EDIT.API.SUCCESS_MESSAGE'
           );
@@ -172,8 +196,23 @@ export default {
       @submit="submitForm"
     >
       <FormKit v-for="item in formItems" :key="item.name" v-bind="item" />
+      <!-- ai_assistant: 一个助理可关联多个收件箱(多选), 创建与编辑均可调整 -->
       <FormKit
-        v-if="isHookTypeInbox && !isEditing"
+        v-if="isHookTypeInbox && isAiAssistant"
+        :options="inboxes"
+        type="checkbox"
+        name="inbox_ids"
+        :label="$t('INTEGRATION_APPS.AI_ASSISTANT.FORM.INBOXES.LABEL')"
+        :help="$t('INTEGRATION_APPS.AI_ASSISTANT.FORM.INBOXES.HELP')"
+        validation="required"
+        :validation-messages="{
+          required: $t('INTEGRATION_APPS.AI_ASSISTANT.FORM.INBOXES.REQUIRED'),
+        }"
+        validation-name="Inboxes"
+      />
+      <!-- 其它 inbox 型集成(dialogflow 等): 单选, 仅创建时可选 -->
+      <FormKit
+        v-else-if="isHookTypeInbox && !isEditing"
         :options="inboxes"
         type="select"
         name="inbox"

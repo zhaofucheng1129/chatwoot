@@ -27,7 +27,7 @@ class MessageTemplates::HookExecutionService
     return unless message.incoming? && conversation.assignee_id.blank?
     return if conversation.resolved?
 
-    hook = inbox.hooks.find_by(app_id: 'ai_assistant', status: :enabled)
+    hook = inbox.ai_assistant_hooks.find_by(status: :enabled)
     return if hook.blank?
 
     Llm::AssistantResponseJob.perform_later(conversation, hook)

@@ -37,6 +37,7 @@ zh_CN:
     ai_assistant:
       agent_bot_conflict: '该收件箱已绑定外部机器人, 请先在收件箱设置的"机器人"标签中解绑, 再启用 AI 客服助理'
       hook_conflict: '该收件箱已由内建 AI 客服助理接管, 请先在 集成 - AI 客服助理 中停用对应配置, 再绑定机器人'
+      inbox_required: '请为 AI 客服助理至少选择一个收件箱'
     account:
       reporting_timezone:
         invalid: is not a valid timezone

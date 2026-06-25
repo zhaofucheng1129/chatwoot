@@ -124,7 +124,7 @@ const confirmDeletion = async () => {
             <Icon icon="i-lucide-bot" class="size-5 text-n-slate-11 shrink-0" />
             <div class="flex flex-col min-w-0 flex-1">
               <span class="text-sm font-medium text-n-slate-12 truncate">
-                {{ hook.inbox?.name || '--' }}
+                {{ hook.settings?.bot_name || hook.settings?.model || '--' }}
               </span>
               <span class="text-xs text-n-slate-11 truncate">
                 {{ `${hook.settings?.model} · ${hook.settings?.base_url}` }}
@@ -208,6 +208,21 @@ const confirmDeletion = async () => {
               icon="i-lucide-trash-2"
               @click="openDeletePopup(hook)"
             />
+          </div>
+          <div
+            v-if="hook.inboxes && hook.inboxes.length"
+            class="flex flex-wrap items-center gap-1.5"
+          >
+            <span class="text-xs text-n-slate-11 shrink-0">
+              {{ $t('INTEGRATION_APPS.AI_ASSISTANT.CONNECTED_INBOXES') }}
+            </span>
+            <span
+              v-for="inbox in hook.inboxes"
+              :key="inbox.id"
+              class="px-2 py-0.5 rounded-md text-xs bg-n-alpha-2 text-n-slate-12"
+            >
+              {{ inbox.name }}
+            </span>
           </div>
           <AiAssistantKnowledgeBase :hook-id="hook.id" />
         </div>
