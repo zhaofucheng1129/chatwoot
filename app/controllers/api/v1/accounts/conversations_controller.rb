@@ -164,6 +164,16 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
     # rubocop:enable Rails/SkipsModelValidations
 
     ::Conversations::UnreadCounts::Notifier.new(@conversation).perform
+
+    # update_columns skips callbacks, so conversation.updated is never
+    # dispatched on an agent read. Dispatch it explicitly so API-channel
+    # clients (mobile app) receive the new agent_last_seen_at over the socket
+    # and can render read receipts in real time.
+    Rails.configuration.dispatcher.dispatch(
+      CONVERSATION_UPDATED, Time.zone.now,
+      conversation: @conversation, changed_attributes: nil,
+      performed_by: Current.executed_by
+    )
   end
 
   def should_update_last_seen?
