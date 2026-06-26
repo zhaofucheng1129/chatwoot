@@ -20,13 +20,21 @@ class Llm::ProviderHealthCheckService
     HTTParty.post(
       "#{settings['base_url'].to_s.chomp('/')}/chat/completions",
       headers: { 'Content-Type' => 'application/json', 'Authorization' => "Bearer #{settings['api_key']}" },
-      body: {
-        model: settings['model'],
-        max_tokens: 5,
-        messages: [{ role: 'user', content: 'ping' }]
-      }.to_json,
+      body: ping_body.to_json,
       timeout: TIMEOUT
     )
+  end
+
+  def ping_body
+    body = {
+      model: settings['model'],
+      max_tokens: 5,
+      messages: [{ role: 'user', content: 'ping' }]
+    }
+    # Volcengine Doubao reasoning models default to chain-of-thought, which
+    # pushes latency past the timeout. Disabling it keeps the ping fast.
+    body[:thinking] = { type: 'disabled' } if ActiveModel::Type::Boolean.new.cast(settings['disable_thinking'])
+    body
   end
 
   def result(response, started_at)
