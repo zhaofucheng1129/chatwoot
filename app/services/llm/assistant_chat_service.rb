@@ -88,7 +88,16 @@ class Llm::AssistantChatService
 
   def system_prompt
     rules = settings['behavior_prompt'].presence || DEFAULT_BEHAVIOR_PROMPT
-    "#{settings['system_prompt']}#{knowledge_section}\n\n#{rules}"
+    "#{settings['system_prompt']}#{knowledge_section}#{order_section}\n\n#{rules}"
+  end
+
+  # 拼接客户当前订单详情段落(调用订单接口获取);未取到或失败返回空串.
+  def order_section
+    @order_section ||= Llm::OrderDetailService.new(conversation: conversation).perform.to_s
+  rescue StandardError => e
+    # 订单详情获取失败降级:跳过订单上下文照常回复, 不阻塞.
+    Rails.logger.error("[Llm::AssistantChatService] order detail failed #{e.class}: #{e.message}")
+    ''
   end
 
   # 命中知识库时拼接参考资料段落;未启用或无命中返回空串.
