@@ -19,6 +19,11 @@ class Llm::AssistantResponseJob < ApplicationJob
     return if conversation.assignee_id.present?
     return if conversation.resolved?
 
+    # 客户端进入订单会话时自动发的"订单卡片"消息不是客户的真实提问,不触发 AI 回复:
+    # 客户端会改为展示快捷问题卡片, 等客户真正提问再回复(订单数据仍注入上下文, 仅在
+    # 被问到时引用). 避免一进会话就机械复述订单状态.
+    return if order_card_trigger?
+
     # 按钮显式请求或打字命中关键词时直接 handoff,且不广播 AI typing,避免点
     # 「人工客服」后先闪一下"AI 助理思考中"再切到"正在为您接入人工客服".
     return handoff if explicit_handoff_request? || handoff_keyword_hit?
@@ -63,8 +68,10 @@ class Llm::AssistantResponseJob < ApplicationJob
     begin
       respond_with_llm
     rescue StandardError => e
+      # No automatic handoff on error: stay with the AI (the customer can reach
+      # a human via the explicit "Live agent" button). Auto-transferring on a
+      # transient failure is exactly the behavior we must avoid.
       Rails.logger.error("[Llm::AssistantResponseJob] failed for conversation #{@conversation&.id}: #{e.class} #{e.message}")
-      handoff
     ensure
       trigger_typing(Events::Types::CONVERSATION_TYPING_OFF)
     end
@@ -89,10 +96,17 @@ class Llm::AssistantResponseJob < ApplicationJob
 
   def respond_with_llm
     result = Llm::AssistantChatService.new(conversation: @conversation, hook: @hook).perform
-    # 模型主动转人工时其回复本身已是客户语言,优先作为过渡话术
-    return handoff(result&.dig(:content)) if result.nil? || result[:handoff]
+    # No automatic handoff: a human is reached ONLY via the explicit "Live
+    # agent" button or a typed handoff keyword (see #perform). We deliberately
+    # ignore the model's [[HANDOFF]] signal and never transfer on a nil/empty
+    # result -- the model's own reply invites the Live agent button when a human
+    # is wanted, so normal questions are always answered by the AI.
+    return if result.nil?
 
-    create_message(result[:content])
+    content = result[:content].to_s.strip
+    return if content.empty?
+
+    create_message(content)
   end
 
   # 客户端「人工客服」按钮发来的显式请求:末条 incoming 的
@@ -100,6 +114,12 @@ class Llm::AssistantResponseJob < ApplicationJob
   # 区分,按钮精确触发,不依赖关键词模糊匹配(契约见 app 端 requestLiveAgent).
   def explicit_handoff_request?
     @conversation.messages.incoming.last&.content_attributes&.dig('lt_request') == 'live_agent'
+  end
+
+  # 末条 incoming 是客户端自动发送的订单卡片(content_attributes.lt_type ==
+  # 'order_card', 契约见 app 端 _maybeSendOrderContext). 命中则跳过 AI 回复.
+  def order_card_trigger?
+    @conversation.messages.incoming.last&.content_attributes&.dig('lt_type') == 'order_card'
   end
 
   # 输入框打字命中 handoff_keywords 即转人工. 收紧为整条消息(去空白/标点后)

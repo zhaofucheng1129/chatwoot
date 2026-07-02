@@ -53,7 +53,14 @@ class Public::Api::V1::Inboxes::MessagesController < Public::Api::V1::InboxesCon
     # an explicit handoff request deterministically (consumed by
     # Llm::AssistantResponseJob#explicit_handoff_request?), independent of the
     # natural-language handoff keywords.
-    params.permit(:content, :echo_id, content_attributes: [:lt_request])
+    # `content_attributes.lt_locale` carries the app's UI language on
+    # auto-posted order-context messages so the assistant replies in the
+    # customer's language instead of language-detecting the (usually Chinese)
+    # order title (consumed by Llm::AssistantChatService#language_rule).
+    # `content_attributes.lt_type` marks a message kind; 'order_card' flags the
+    # auto-posted order-context message so the assistant skips replying to it
+    # (consumed by Llm::AssistantResponseJob#order_card_trigger?).
+    params.permit(:content, :echo_id, content_attributes: [:lt_request, :lt_locale, :lt_type])
   end
 
   def set_message

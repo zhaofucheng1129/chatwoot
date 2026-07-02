@@ -23,7 +23,16 @@ class Llm::AssistantChatService
   # Integrations -> AI Assistant). An override MUST keep the HANDOFF_TOKEN
   # marker so the server can still detect an explicit handoff.
   DEFAULT_BEHAVIOR_PROMPT = <<~PROMPT.strip
-    Always reply in the same language the customer used in their latest message. When you cannot answer or do not understand the request, do NOT transfer to a human automatically: briefly apologize and invite the customer to tap the "Live agent" button if they need a human. Only append the marker #{HANDOFF_TOKEN} at the very end of your reply when the customer EXPLICITLY asks for a human / live agent.
+    Always reply in the same language the customer used in their latest message. NEVER transfer the customer to a human automatically. When you cannot answer, do not understand the request, or the customer wants to talk to a human agent, briefly apologize if appropriate and invite the customer to tap the "Live agent" button to reach a human -- do NOT claim that you are transferring them and do NOT output any handoff marker.
+  PROMPT
+
+  # Language override appended when the latest customer message is an
+  # app-posted order card (carries `content_attributes.lt_locale`). The card
+  # body (product title / order number) is not the customer's own language, so
+  # the "follow the latest message" rule above would misdetect it (titles are
+  # usually Chinese); this pins the reply language to the app's UI locale.
+  LOCALE_RULE_TEMPLATE = <<~PROMPT.strip
+    The customer's latest message is an order card posted automatically by the app, NOT text typed by the customer, so do not infer the reply language from it. The customer's app language setting is '%<locale>s' (BCP-47); reply in that language until the customer sends a typed message in another language.
   PROMPT
 
   # 返回 { content:, handoff: } ;请求失败返回 nil 由调用方做 handoff 兜底.
@@ -88,7 +97,26 @@ class Llm::AssistantChatService
 
   def system_prompt
     rules = settings['behavior_prompt'].presence || DEFAULT_BEHAVIOR_PROMPT
-    "#{settings['system_prompt']}#{knowledge_section}#{order_section}\n\n#{rules}"
+    "#{settings['system_prompt']}#{knowledge_section}#{order_section}\n\n#{rules}#{language_rule}"
+  end
+
+  # 最新一条客户消息带 lt_locale(客户端自动发送的订单卡片)时,追加显式语言指令,
+  # 强制用客户 App 设置的语言回复;客户手打的文本消息不带该标记,维持
+  # DEFAULT_BEHAVIOR_PROMPT 的自动识别规则,返回空串不追加.
+  def language_rule
+    locale = latest_incoming_locale
+    return '' if locale.blank?
+
+    "\n\n#{format(LOCALE_RULE_TEMPLATE, locale: locale)}"
+  end
+
+  # 从最新 incoming 消息读 content_attributes.lt_locale,并做字符白名单清洗
+  # (BCP-47 只含字母与连字符),避免把任意客户端输入拼进 system prompt.
+  def latest_incoming_locale
+    raw = conversation.messages
+                      .where(message_type: :incoming, private: false)
+                      .last&.content_attributes&.dig('lt_locale').to_s
+    raw[/\A[a-zA-Z-]{2,20}\z/]
   end
 
   # 拼接客户当前订单详情段落(调用订单接口获取);未取到或失败返回空串.

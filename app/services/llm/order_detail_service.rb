@@ -30,8 +30,9 @@ class Llm::OrderDetailService
     detail = fetch(order_no)
     return if detail.blank?
 
-    "\n\n以下是该客户当前订单(订单号 #{order_no})的详细信息(JSON), " \
-      "请优先依据它回答订单相关问题, 其中没有的信息不要编造:\n" \
+    "\n\n以下是该客户当前订单(订单号 #{order_no})的详细信息(JSON). " \
+      '不要主动复述或总结订单状态; 仅当客户明确询问订单相关问题时, 才依据它回答, ' \
+      "其中没有的信息不要编造:\n" \
       "#{detail[0, MAX_DETAIL_LENGTH]}"
   rescue StandardError => e
     Rails.logger.error("[Llm::OrderDetailService] failed #{e.class}: #{e.message}")
