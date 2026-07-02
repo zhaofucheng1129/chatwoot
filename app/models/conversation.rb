@@ -114,6 +114,11 @@ class Conversation < ApplicationRecord
   has_many :attachments, through: :messages
   has_many :reporting_events, dependent: :destroy_async
 
+  # Transient flag (not persisted): set by Conversations::IdleAutoResolveJob so
+  # the resolve callback skips the "agent resolved" marker and lets the job post
+  # the distinct "auto-closed after 5 min idle" marker instead.
+  attr_accessor :lt_auto_resolving
+
   before_save :ensure_snooze_until_reset
   before_create :determine_conversation_status
   before_create :ensure_waiting_since
@@ -245,13 +250,12 @@ class Conversation < ApplicationRecord
   # reporting still sees the assignee; update_columns avoids re-entering the
   # callback chain.
   def release_human_agent_on_resolve
-    return unless saved_change_to_status? && resolved?
-    return unless inbox.active_bot?
-    return if assignee_id.blank?
+    return unless release_human_agent_on_resolve?
 
     # 真人会话结束:先发「已完成」状态标记(带刚才的客服名,历史可还原),
-    # 再把会话交还机器人.
-    announce_agent_resolved
+    # 再把会话交还机器人. 自动关闭(idle 超时)时跳过此标记, 由 job 改发
+    # 「自动关闭」标记(lt_auto_resolving), 客户端据此区分两种关闭原因.
+    announce_agent_resolved unless lt_auto_resolving
 
     merged = (additional_attributes || {}).merge(
       'last_human_agent_id' => assignee_id,
@@ -260,6 +264,13 @@ class Conversation < ApplicationRecord
     # rubocop:disable Rails/SkipsModelValidations
     update_columns(additional_attributes: merged, assignee_id: nil)
     # rubocop:enable Rails/SkipsModelValidations
+  end
+
+  # Guard for [release_human_agent_on_resolve]: a bot inbox conversation that
+  # just transitioned to resolved while a human was assigned.
+  def release_human_agent_on_resolve?
+    saved_change_to_status? && resolved? && inbox.active_bot? &&
+      assignee_id.present?
   end
 
   # 「客服已完成」状态标记消息.message_type outgoing(非 activity/非 private),
@@ -274,6 +285,21 @@ class Conversation < ApplicationRecord
     )
   rescue StandardError => e
     Rails.logger.warn("[Conversation#announce_agent_resolved] failed: #{e.message}")
+  end
+
+  # 「因超过闲置时限自动关闭」状态标记消息. 与 agent_resolved(客服手动结束)区分,
+  # content_attributes.lt_status = 'idle_resolved' 驱动客户端渲染专属文案.
+  # 由 Conversations::IdleAutoResolveJob 在 resolve 之前调用.
+  def announce_idle_resolved
+    messages.create!(
+      message_type: :outgoing,
+      account_id: account_id,
+      inbox_id: inbox_id,
+      content: 'The conversation was closed automatically after 5 minutes of inactivity.',
+      content_attributes: { 'lt_status' => 'idle_resolved' }
+    )
+  rescue StandardError => e
+    Rails.logger.warn("[Conversation#announce_idle_resolved] failed: #{e.message}")
   end
 
   def ensure_snooze_until_reset

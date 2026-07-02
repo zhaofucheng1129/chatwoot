@@ -26,6 +26,13 @@ trigger_imap_email_inboxes_job:
   class: 'Inboxes::FetchImapEmailInboxesJob'
   queue: scheduled_jobs
 
+# executed every minute: auto-close idle customer-service conversations
+# (assigned to a human, no customer message for 5 min) with a distinct marker.
+conversations_idle_auto_resolve_job:
+  cron: '*/1 * * * *'
+  class: 'Conversations::IdleAutoResolveJob'
+  queue: scheduled_jobs
+
 # executed daily at 2230 UTC
 # which is our lowest traffic time
 remove_stale_contact_inboxes_job.rb:
