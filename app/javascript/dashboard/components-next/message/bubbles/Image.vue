@@ -61,8 +61,12 @@ const handleImageError = () => {
       </p>
     </div>
     <div v-else-if="isLoaded" class="relative group rounded-lg overflow-hidden">
+      <!-- Cap the inline thumbnail so large photos do not dominate the
+           conversation; the natural width/height attrs still supply the
+           aspect ratio (no layout shift), and clicking the bubble opens the
+           full-size GalleryView. -->
       <img
-        class="skip-context-menu"
+        class="skip-context-menu max-h-80 max-w-full w-auto h-auto object-contain"
         :src="attachment.dataUrl"
         :width="attachment.width"
         :height="attachment.height"
