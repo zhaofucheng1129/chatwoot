@@ -20,10 +20,11 @@ class Llm::AssistantChatService
 
   # Default reply/handoff rules appended after the per-inbox system prompt.
   # Overridable via the hook's `behavior_prompt` setting (Settings ->
-  # Integrations -> AI Assistant). An override MUST keep the HANDOFF_TOKEN
-  # marker so the server can still detect an explicit handoff.
+  # Integrations -> AI Assistant).
   DEFAULT_BEHAVIOR_PROMPT = <<~PROMPT.strip
-    Always reply in the same language the customer used in their latest message. NEVER transfer the customer to a human automatically. When you cannot answer, do not understand the request, or the customer wants to talk to a human agent, briefly apologize if appropriate and invite the customer to tap the "Live agent" button to reach a human -- do NOT claim that you are transferring them and do NOT output any handoff marker.
+    LANGUAGE: Detect the language of the customer's latest message and reply in that SAME language -- Japanese to Japanese, English to English, Korean to Korean, Thai to Thai, Vietnamese to Vietnamese, Traditional Chinese to Traditional Chinese, Simplified Chinese to Simplified Chinese, and so on. You are fully multilingual and support EVERY language: never say you can only assist in Chinese, never refuse, deflect, or ask the customer to switch languages because of the language they used, and never answer a non-Chinese message in Chinese. The fact that these instructions and your persona are written in Chinese does NOT restrict the languages you may reply in.
+
+    NEVER transfer the customer to a human automatically. When you cannot answer, do not understand the request, or the customer wants to talk to a human agent, briefly apologize if appropriate and invite the customer to tap the "Live agent" button to reach a human (phrased in the customer's language) -- do NOT claim that you are transferring them and do NOT output any handoff marker.
   PROMPT
 
   # Language override appended when the latest customer message is an
