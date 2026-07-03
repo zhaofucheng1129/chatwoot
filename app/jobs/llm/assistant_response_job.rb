@@ -124,10 +124,10 @@ class Llm::AssistantResponseJob < ApplicationJob
 
   # 订单卡片进入会话后, 回一条"快捷问题"卡片消息(content_attributes.lt_type ==
   # 'quick_questions', 契约见 app 端 ChatMessageMapper). 内容取自 hook 设置的
-  # quick_questions(按客户端语言 lt_locale 选集). 每个会话只发一次, 避免多张
-  # 订单卡片重复触发; 未配置或该语言缺失则不发(客户端无卡片可显示时静默即可).
+  # quick_questions(按客户端语言 lt_locale 选集). 未配置或该语言缺失则不发
+  # (客户端无卡片可显示时静默即可).
   def reply_quick_questions
-    return if quick_questions_already_sent?
+    return unless quick_questions_due?
 
     payload = quick_questions_payload
     return if payload.blank?
@@ -141,10 +141,22 @@ class Llm::AssistantResponseJob < ApplicationJob
     )
   end
 
-  def quick_questions_already_sent?
-    @conversation.messages.outgoing.any? do |message|
+  # 是否该(再)发快捷问题卡: 从未发过则发(首张订单卡片场景); 否则仅当上一张
+  # 快捷问题卡之后已有真实对话消息时才再发, 避免连续多张订单卡片之间反复刷 FAQ.
+  def quick_questions_due?
+    messages = @conversation.messages.order(:id).to_a
+    last_card_index = messages.rindex do |message|
       message.content_attributes&.dig('lt_type') == 'quick_questions'
     end
+    return true if last_card_index.nil?
+
+    messages[(last_card_index + 1)..].any? { |message| dialogue_message?(message) }
+  end
+
+  # 真实对话消息: 既非订单卡片/快捷问题卡片, 也非 live-agent 状态标记.
+  def dialogue_message?(message)
+    attrs = message.content_attributes || {}
+    attrs['lt_type'].blank? && attrs['lt_status'].blank?
   end
 
   # 从 hook.settings['quick_questions'] 取当前客户端语言的问题集. 结构:
