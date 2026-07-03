@@ -19,10 +19,10 @@ class Llm::AssistantResponseJob < ApplicationJob
     return if conversation.assignee_id.present?
     return if conversation.resolved?
 
-    # 客户端进入订单会话时自动发的"订单卡片"消息不是客户的真实提问,不触发 AI 回复:
-    # 客户端会改为展示快捷问题卡片, 等客户真正提问再回复(订单数据仍注入上下文, 仅在
+    # 客户端进入订单会话时自动发的"订单卡片"消息不是客户的真实提问, 不触发 AI 回复:
+    # 改为回一条"快捷问题"卡片消息, 等客户真正提问再回复(订单数据仍注入上下文, 仅在
     # 被问到时引用). 避免一进会话就机械复述订单状态.
-    return if order_card_trigger?
+    return reply_quick_questions if order_card_trigger?
 
     # 按钮显式请求或打字命中关键词时直接 handoff,且不广播 AI typing,避免点
     # 「人工客服」后先闪一下"AI 助理思考中"再切到"正在为您接入人工客服".
@@ -120,6 +120,66 @@ class Llm::AssistantResponseJob < ApplicationJob
   # 'order_card', 契约见 app 端 _maybeSendOrderContext). 命中则跳过 AI 回复.
   def order_card_trigger?
     @conversation.messages.incoming.last&.content_attributes&.dig('lt_type') == 'order_card'
+  end
+
+  # 订单卡片进入会话后, 回一条"快捷问题"卡片消息(content_attributes.lt_type ==
+  # 'quick_questions', 契约见 app 端 ChatMessageMapper). 内容取自 hook 设置的
+  # quick_questions(按客户端语言 lt_locale 选集). 每个会话只发一次, 避免多张
+  # 订单卡片重复触发; 未配置或该语言缺失则不发(客户端无卡片可显示时静默即可).
+  def reply_quick_questions
+    return if quick_questions_already_sent?
+
+    payload = quick_questions_payload
+    return if payload.blank?
+
+    create_message(
+      quick_questions_fallback_text(payload),
+      content_attributes: {
+        'lt_type' => 'quick_questions',
+        'lt_quick_questions' => payload
+      }
+    )
+  end
+
+  def quick_questions_already_sent?
+    @conversation.messages.outgoing.any? do |message|
+      message.content_attributes&.dig('lt_type') == 'quick_questions'
+    end
+  end
+
+  # 从 hook.settings['quick_questions'] 取当前客户端语言的问题集. 结构:
+  #   { "en" => { "greeting" => "..", "pages" => [ { "items" => ["q1","q2"] } ] } }
+  def quick_questions_payload
+    config = @hook.settings['quick_questions']
+    return if config.blank?
+
+    set = quick_questions_locale_candidates.filter_map { |key| config[key] }.first
+    set.presence
+  end
+
+  # 客户端 lt_locale 是 BCP-47(如 'zh-Hans-CN'). 逐段回退再退 default/en:
+  #   'zh-Hans-CN' -> 'zh-Hans' -> 'zh' -> 'default' -> 'en',
+  # 从而 'zh-Hans' 键即可命中, 且 'ja-JP' 等带国家的 tag 也能落到主语言键.
+  def quick_questions_locale_candidates
+    parts = order_card_locale.to_s.split('-').reject(&:blank?)
+    prefixes = parts.length.downto(1).map { |n| parts.first(n).join('-') }
+    prefixes + %w[default en]
+  end
+
+  # 客户端订单卡片消息带 content_attributes.lt_locale, 标明客户界面语言.
+  # reply_quick_questions 由 order_card_trigger? 触发, 此时末条 incoming 即订单卡片.
+  def order_card_locale
+    @conversation.messages.incoming.last&.content_attributes&.dig('lt_locale')
+  end
+
+  # 坐席后台 / 不支持卡片的端看到的纯文本兜底(问候语 + 所有问题逐行).
+  def quick_questions_fallback_text(payload)
+    lines = []
+    lines << payload['greeting'] if payload['greeting'].present?
+    Array(payload['pages']).each do |page|
+      Array(page['items']).each { |item| lines << item }
+    end
+    lines.join("\n")
   end
 
   # 输入框打字命中 handoff_keywords 即转人工. 收紧为整条消息(去空白/标点后)

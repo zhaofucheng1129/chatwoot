@@ -247,6 +247,7 @@ ai_assistant:
           'embedding_base_url': { 'type': 'string' },
           'embedding_api_key': { 'type': 'string' },
           'embedding_model': { 'type': 'string' },
+          'quick_questions': { 'type': 'object' },
         },
       'required': ['base_url', 'api_key', 'model', 'system_prompt'],
       'additionalProperties': false,
@@ -335,6 +336,15 @@ ai_assistant:
         'name': 'embedding_model',
         'placeholder': 'doubao-embedding',
         'help': 'Embedding model ID enables knowledge base retrieval (RAG). Leave blank to disable it.',
+      },
+      {
+        'label': 'Quick questions (JSON, optional)',
+        'type': 'textarea',
+        'name': 'quick_questions',
+        'validation': 'JSON',
+        'validationName': 'Quick questions',
+        'validation-messages': { 'JSON': 'Invalid JSON' },
+        'help': 'Localized suggested-question card sent right after the order card. Top-level keys are client locales (e.g. en, zh-Hans, zh-Hant) plus an optional "default" fallback. Each set is {"greeting":"..","pages":[{"items":["q1","q2","q3"]}]}. Leave blank to send no card.',
       },
     ]
   visible_properties: ['base_url', 'model']

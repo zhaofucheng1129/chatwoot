@@ -38,9 +38,11 @@ export default {
     // 编辑模式预填: JSON 类型字段(对象)需转回字符串供文本框展示
     const values = Object.keys(settings).reduce((acc, key) => {
       const value = settings[key];
+      // JSON-object settings (e.g. quick_questions / dialogflow credentials)
+      // round-trip through a textarea; pretty-print so they stay editable.
       acc[key] =
         typeof value === 'object' && value !== null
-          ? JSON.stringify(value)
+          ? JSON.stringify(value, null, 2)
           : value;
       return acc;
     }, {});
@@ -124,9 +126,14 @@ export default {
 
       this.formItems.forEach(item => {
         if (item.validation?.includes('JSON')) {
-          hookPayload.settings[item.name] = JSON.parse(
-            hookPayload.settings[item.name]
-          );
+          const raw = hookPayload.settings[item.name];
+          // Optional JSON fields (e.g. quick_questions) may be left blank --
+          // JSON.parse('') throws, so drop the key instead of parsing.
+          if (raw === undefined || raw === null || String(raw).trim() === '') {
+            delete hookPayload.settings[item.name];
+          } else {
+            hookPayload.settings[item.name] = JSON.parse(raw);
+          }
         }
       });
 
