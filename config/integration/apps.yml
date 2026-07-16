@@ -351,7 +351,9 @@ ai_assistant:
         'help': 'Localized suggested-question card sent right after the order card. Top-level keys are client locales (e.g. en, zh-Hans, zh-Hant) plus an optional "default" fallback. Each set is {"greeting":"..","pages":[{"items":["q1","q2","q3"]}]}. Leave blank to send no card.',
       },
     ]
-  visible_properties: ['base_url', 'model']
+  # 白名单: 回传前端表单预填的设置字段; 故意排除 api_key/embedding_api_key(密钥不外泄,
+  # 留空保存时由 hooks_controller#update 的合并逻辑保留原值)。
+  visible_properties: ['base_url', 'model', 'disable_thinking', 'system_prompt', 'behavior_prompt', 'bot_name', 'handoff_keywords', 'greeting_message', 'embedding_base_url', 'embedding_model', 'quick_questions']
 google_translate:
   id: google_translate
   logo: google-translate.png

@@ -11,7 +11,11 @@ class Api::V1::Accounts::Integrations::HooksController < Api::V1::Accounts::Base
 
   def update
     ActiveRecord::Base.transaction do
-      @hook.update!(permitted_params.slice(:status, :settings))
+      attrs = permitted_params.slice(:status, :settings)
+      # 合并而非整体替换 settings: 表单未回传的字段(如不进 visible_properties 白名单的 api_key)
+      # 保留原值, 避免编辑保存时把已存密钥清掉。
+      attrs[:settings] = @hook.settings.to_h.merge(attrs[:settings].to_h) if attrs.key?(:settings)
+      @hook.update!(attrs)
       sync_ai_assistant_inboxes if permitted_params.key?(:inbox_ids)
     end
   end
